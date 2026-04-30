@@ -61,9 +61,16 @@ main{flex:1;padding:20px;max-width:1100px;margin:0 auto;width:100%}
 /* ===== ÜRÜNLER (ANA EKRAN) ===== */
 .urunler-toolbar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
 .search-inp{flex:1;min-width:160px}
-.kat-filter{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
-.kat-btn{padding:5px 12px;background:var(--surface);border:1px solid var(--border);color:var(--text2);font-size:12px;border-radius:20px;cursor:pointer;transition:all .15s}
-.kat-btn:hover,.kat-btn.active{border-color:var(--accent);color:var(--accent)}
+.kat-accordion{margin-bottom:8px;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.kat-accordion-header{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;cursor:pointer;background:var(--surface);transition:background .15s;user-select:none}
+.kat-accordion-header:hover{background:var(--surface2)}
+.kat-accordion-title{font-family:var(--mono);font-size:12px;font-weight:500;display:flex;align-items:center;gap:8px}
+.kat-accordion-arrow{font-size:10px;color:var(--text3);transition:transform .2s}
+.kat-accordion-arrow.open{transform:rotate(90deg)}
+.kat-accordion-body{display:none;padding:12px}
+.kat-accordion-body.open{display:block}
+.kat-badges{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.kat-badge{font-size:11px;font-family:var(--mono);padding:2px 6px;border-radius:3px}
 .urun-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
 .urun-kart{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;cursor:pointer;transition:border-color .15s}
 .urun-kart:hover{border-color:var(--border2)}
@@ -198,7 +205,6 @@ main{flex:1;padding:20px;max-width:1100px;margin:0 auto;width:100%}
     <input class="inp search-inp" id="urun-search" placeholder="Ürün veya barkod ara..." oninput="renderUrunler()">
     <button class="btn-accent" onclick="openUrunModal()">+ Ürün Ekle</button>
   </div>
-  <div class="kat-filter" id="kat-filter"></div>
   <div id="urun-grid-content"><div class="loading">Yükleniyor</div></div>
 </div>
 
@@ -414,41 +420,74 @@ window.goPage = function(name, btn){
 };
 
 // ── ÜRÜNLER ──
+const acikKatlar=new Set();
+
 window.renderUrunler = function(){
   const q=(document.getElementById('urun-search')?.value||'').toLowerCase();
   let data=Object.values(stokCache);
   if(q) data=data.filter(u=>(u.urun_adi||'').toLowerCase().includes(q)||String(u.barkod).includes(q));
-  if(aktifKat!=='Hepsi') data=data.filter(u=>(u.kategori||'Diğer')===aktifKat);
-
-  // kategorileri güncelle
-  const katlar=['Hepsi',...new Set(Object.values(stokCache).map(u=>u.kategori||'Diğer').sort())];
-  const kf=document.getElementById('kat-filter');
-  if(kf) kf.innerHTML=katlar.map(k=>`<button class="kat-btn${k===aktifKat?' active':''}" onclick="setKat('${k}')">${k}</button>`).join('');
 
   const el=document.getElementById('urun-grid-content');
   if(!el) return;
   if(!data.length){el.innerHTML='<div class="empty">Ürün bulunamadı</div>';return;}
-  const sorted=[...data].sort((a,b)=>{
-    const da=dur(a.stok_miktari,a.kritik_limit), db2=dur(b.stok_miktari,b.kritik_limit);
-    const order={'Tükendi':0,'Kritik':1,'Normal':2};
-    return (order[da]||2)-(order[db2]||2);
+
+  // kategoriye göre grupla
+  const gruplar={};
+  data.forEach(u=>{
+    const k=u.kategori||'Diğer';
+    if(!gruplar[k]) gruplar[k]=[];
+    gruplar[k].push(u);
   });
-  el.innerHTML=`<div class="urun-grid">${sorted.map(u=>{
-    const d=dur(u.stok_miktari,u.kritik_limit), dc=durClass(d);
-    return `<div class="urun-kart" onclick="openDetayModal('${u._id}')">
-      <div class="urun-kart-header">
-        <div class="urun-kart-ad">${u.urun_adi}</div>
-        <span class="durum-pill durum-${dc}">${d}</span>
+
+  // her grubu sırala: tükendi > kritik > normal
+  const sortUrunler=(arr)=>[...arr].sort((a,b)=>{
+    const order={'Tükendi':0,'Kritik':1,'Normal':2};
+    return (order[dur(a.stok_miktari,a.kritik_limit)]||2)-(order[dur(b.stok_miktari,b.kritik_limit)]||2);
+  });
+
+  const katSirali=Object.keys(gruplar).sort();
+  // arama varsa hepsini aç
+  if(q) katSirali.forEach(k=>acikKatlar.add(k));
+
+  el.innerHTML=katSirali.map(kat=>{
+    const urunler=sortUrunler(gruplar[kat]);
+    const acik=acikKatlar.has(kat);
+    const kritikSayisi=urunler.filter(u=>dur(u.stok_miktari,u.kritik_limit)==='Kritik').length;
+    const tukendiSayisi=urunler.filter(u=>dur(u.stok_miktari,u.kritik_limit)==='Tükendi').length;
+    const badgeler=[];
+    if(tukendiSayisi) badgeler.push(`<span class="kat-badge durum-tukendi">${tukendiSayisi} tükendi</span>`);
+    if(kritikSayisi) badgeler.push(`<span class="kat-badge durum-kritik">${kritikSayisi} kritik</span>`);
+    return `<div class="kat-accordion">
+      <div class="kat-accordion-header" onclick="toggleKat('${kat}')">
+        <div class="kat-accordion-title">
+          <span class="kat-accordion-arrow${acik?' open':''}">▶</span>
+          ${kat}
+          <span style="color:var(--text3);font-weight:400">(${urunler.length})</span>
+          <div class="kat-badges">${badgeler.join('')}</div>
+        </div>
       </div>
-      <div class="urun-kart-barkod">${u.barkod}</div>
-      <div class="urun-kart-footer">
-        <div class="urun-kart-stok ${dc}">${u.stok_miktari} <span style="font-size:12px;font-weight:400;color:var(--text2)">${u.birim||'adet'}</span></div>
-        <div class="urun-kart-kat">${u.kategori||'Diğer'}</div>
+      <div class="kat-accordion-body${acik?' open':''}">
+        <div class="urun-grid">${urunler.map(u=>{
+          const d=dur(u.stok_miktari,u.kritik_limit),dc=durClass(d);
+          return `<div class="urun-kart" onclick="openDetayModal('${u._id}')">
+            <div class="urun-kart-header">
+              <div class="urun-kart-ad">${u.urun_adi}</div>
+              <span class="durum-pill durum-${dc}">${d}</span>
+            </div>
+            <div class="urun-kart-barkod">${u.barkod}</div>
+            <div class="urun-kart-footer">
+              <div class="urun-kart-stok ${dc}">${u.stok_miktari} <span style="font-size:12px;font-weight:400;color:var(--text2)">${u.birim||'adet'}</span></div>
+            </div>
+          </div>`;}).join('')}
+        </div>
       </div>
-    </div>`;}).join('')}</div>`;
+    </div>`;}).join('');
 };
 
-window.setKat=function(k){aktifKat=k;renderUrunler();};
+window.toggleKat=function(k){
+  if(acikKatlar.has(k)) acikKatlar.delete(k); else acikKatlar.add(k);
+  renderUrunler();
+};
 
 // ── DETAY MODAL ──
 window.openDetayModal=async function(id){
@@ -531,7 +570,17 @@ window.saveYeniUrun=async function(){
 
 // ── STOK İŞLEMLERİ ──
 const islemBarkod=document.getElementById('islem-barkod');
-islemBarkod.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();sorgulaIslem();}});
+islemBarkod.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();window.sorgulaIslem();}});
+
+// netum barkod okuyucu: islemler sayfasındayken odak otomatik input'ta kalsın
+document.addEventListener('keydown',e=>{
+  const islemAktif=document.getElementById('page-islemler').classList.contains('active');
+  if(!islemAktif) return;
+  if(document.activeElement===islemBarkod) return;
+  if(e.key.length===1&&!e.ctrlKey&&!e.metaKey&&!e.altKey){
+    islemBarkod.focus();
+  }
+});
 
 window.sorgulaIslem=function(){
   const barkod=islemBarkod.value.trim();
