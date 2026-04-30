@@ -1,622 +1,126 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Stok Takip</title>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
-
+<title>Barkod Test</title>
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --bg:#0f0f0f;
-  --surface:#181818;
-  --surface2:#222;
-  --border:#2a2a2a;
-  --border2:#333;
-  --text:#f0f0f0;
-  --text2:#888;
-  --text3:#555;
-  --accent:#e8ff4a;
-  --accent-dim:#c8df2a;
-  --green:#4aff8a;
-  --green-dim:#1a4a2a;
-  --red:#ff4a4a;
-  --red-dim:#4a1a1a;
-  --amber:#ffb84a;
-  --amber-dim:#4a3010;
-  --mono:'IBM Plex Mono',monospace;
-  --sans:'IBM Plex Sans',sans-serif;
-  --radius:6px;
-}
-body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;font-size:14px}
-
-/* layout */
-.app{display:flex;flex-direction:column;min-height:100vh}
-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--bg);z-index:100}
-.logo{font-family:var(--mono);font-size:13px;font-weight:500;color:var(--accent);letter-spacing:0.05em}
-.logo span{color:var(--text2)}
-nav{display:flex;gap:2px}
-.nav-btn{background:none;border:none;color:var(--text2);font-family:var(--sans);font-size:13px;padding:6px 12px;cursor:pointer;border-radius:var(--radius);transition:all .15s}
-.nav-btn:hover{color:var(--text);background:var(--surface2)}
-.nav-btn.active{color:var(--accent);background:var(--surface2)}
-
-main{flex:1;padding:20px;max-width:960px;margin:0 auto;width:100%}
-
-/* pages */
-.page{display:none}
-.page.active{display:block}
-
-/* scan page */
-.scan-layout{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
-@media(max-width:640px){.scan-layout{grid-template-columns:1fr}}
-
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
-.card-title{font-family:var(--mono);font-size:11px;color:var(--text3);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:14px}
-
-/* barkod input */
-.barkod-wrap{position:relative;margin-bottom:12px}
-.barkod-input{width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:16px;padding:12px 14px;border-radius:var(--radius);outline:none;transition:border-color .15s;-webkit-appearance:none}
-.barkod-input:focus{border-color:var(--accent)}
-.barkod-input::placeholder{color:var(--text3);font-size:13px}
-
-.islem-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
-.islem-btn{padding:10px;border:1px solid var(--border2);background:var(--surface2);color:var(--text2);font-family:var(--mono);font-size:12px;border-radius:var(--radius);cursor:pointer;transition:all .15s;text-align:center}
-.islem-btn.active-giris{background:var(--green-dim);border-color:var(--green);color:var(--green)}
-.islem-btn.active-cikis{background:var(--red-dim);border-color:var(--red);color:var(--red)}
-.islem-btn:hover{border-color:var(--border2);color:var(--text)}
-
-.miktar-row{display:flex;gap:8px;margin-bottom:12px;align-items:center}
-.miktar-label{font-size:12px;color:var(--text2);white-space:nowrap}
-.miktar-input{width:80px;background:var(--surface2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:15px;padding:8px 10px;border-radius:var(--radius);outline:none;text-align:center;-webkit-appearance:none}
-.miktar-input:focus{border-color:var(--accent)}
-.miktar-stepper{display:flex;flex-direction:column;gap:2px}
-.step-btn{background:var(--surface2);border:1px solid var(--border2);color:var(--text2);width:24px;height:20px;border-radius:3px;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;transition:all .15s}
-.step-btn:hover{color:var(--text);border-color:var(--border2)}
-
-.submit-btn{width:100%;padding:12px;background:var(--accent);color:#000;font-family:var(--mono);font-size:13px;font-weight:500;border:none;border-radius:var(--radius);cursor:pointer;transition:all .15s;letter-spacing:0.03em}
-.submit-btn:hover{background:var(--accent-dim)}
-.submit-btn:disabled{opacity:.4;cursor:not-allowed}
-.sorgula-btn{width:100%;padding:9px;background:none;border:1px solid var(--border2);color:var(--text2);font-family:var(--mono);font-size:12px;border-radius:var(--radius);cursor:pointer;transition:all .15s;margin-bottom:12px;letter-spacing:0.03em}
-.sorgula-btn:hover{border-color:var(--accent);color:var(--accent)}
-
-/* kamera */
-.kamera-btn{width:100%;padding:10px;background:none;border:1px dashed var(--border2);color:var(--text2);font-size:12px;border-radius:var(--radius);cursor:pointer;transition:all .15s;margin-bottom:8px;font-family:var(--sans)}
-.kamera-btn:hover{border-color:var(--accent);color:var(--accent)}
-#reader{border-radius:var(--radius);overflow:hidden;display:none}
-#reader video{width:100%!important;height:auto!important}
-
-/* sonuç kartı */
-.result-card{background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius);padding:14px;margin-top:8px;display:none}
-.result-card.show{display:block}
-.result-urun{font-size:15px;font-weight:500;margin-bottom:4px}
-.result-meta{font-family:var(--mono);font-size:12px;color:var(--text2)}
-.result-stok{font-family:var(--mono);font-size:24px;font-weight:500;margin-top:8px}
-.result-stok.kritik{color:var(--amber)}
-.result-stok.tukendi{color:var(--red)}
-.result-stok.normal{color:var(--green)}
-
-/* toast */
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--surface);border:1px solid var(--border2);color:var(--text);padding:10px 18px;border-radius:var(--radius);font-family:var(--mono);font-size:13px;transition:transform .25s cubic-bezier(.34,1.56,.64,1);z-index:999;white-space:nowrap;pointer-events:none}
-.toast.show{transform:translateX(-50%) translateY(0)}
-.toast.success{border-color:var(--green);color:var(--green)}
-.toast.error{border-color:var(--red);color:var(--red)}
-
-/* stok listesi */
-.stok-toolbar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
-.search-input{flex:1;min-width:160px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:var(--sans);font-size:13px;padding:8px 12px;border-radius:var(--radius);outline:none}
-.search-input:focus{border-color:var(--accent)}
-.filter-btn{padding:8px 12px;background:var(--surface);border:1px solid var(--border);color:var(--text2);font-size:12px;border-radius:var(--radius);cursor:pointer;white-space:nowrap;transition:all .15s}
-.filter-btn:hover,.filter-btn.active{border-color:var(--accent);color:var(--accent)}
-.add-btn{padding:8px 14px;background:var(--accent);border:none;color:#000;font-size:12px;font-weight:500;border-radius:var(--radius);cursor:pointer;font-family:var(--mono);white-space:nowrap}
-
-.stok-table{width:100%;border-collapse:collapse}
-.stok-table th{font-family:var(--mono);font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;padding:8px 10px;border-bottom:1px solid var(--border);text-align:left;font-weight:400}
-.stok-table td{padding:10px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle}
-.stok-table tr:last-child td{border-bottom:none}
-.stok-table tr:hover td{background:var(--surface2)}
-.barkod-cell{font-family:var(--mono);font-size:11px;color:var(--text2)}
-.durum-pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-family:var(--mono)}
-.durum-normal{background:var(--green-dim);color:var(--green)}
-.durum-kritik{background:var(--amber-dim);color:var(--amber)}
-.durum-tukendi{background:var(--red-dim);color:var(--red)}
-.stok-num{font-family:var(--mono);font-size:14px;font-weight:500}
-
-/* hareketler */
-.har-list{display:flex;flex-direction:column;gap:1px}
-.har-item{display:grid;grid-template-columns:auto 1fr auto auto;gap:12px;align-items:center;padding:10px 12px;background:var(--surface);border-radius:var(--radius);font-size:13px}
-.har-item:hover{background:var(--surface2)}
-.har-tip{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:3px;font-weight:500}
-.har-giris{background:var(--green-dim);color:var(--green)}
-.har-cikis{background:var(--red-dim);color:var(--red)}
-.har-urun{font-size:13px}
-.har-barkod{font-family:var(--mono);font-size:11px;color:var(--text3)}
-.har-miktar{font-family:var(--mono);font-size:13px;font-weight:500;text-align:right}
-.har-miktar.giris{color:var(--green)}
-.har-miktar.cikis{color:var(--red)}
-.har-zaman{font-family:var(--mono);font-size:11px;color:var(--text3);text-align:right}
-
-/* dashboard */
-.dash-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px}
-.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
-.stat-label{font-family:var(--mono);font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px}
-.stat-val{font-family:var(--mono);font-size:28px;font-weight:500}
-.stat-val.warn{color:var(--amber)}
-.stat-val.danger{color:var(--red)}
-.stat-val.ok{color:var(--green)}
-
-/* modal */
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;display:none;align-items:center;justify-content:center;padding:20px}
-.modal-overlay.show{display:flex}
-.modal{background:var(--surface);border:1px solid var(--border2);border-radius:8px;padding:20px;width:100%;max-width:400px}
-.modal-title{font-family:var(--mono);font-size:13px;color:var(--accent);margin-bottom:16px;letter-spacing:0.05em}
-.form-group{margin-bottom:12px}
-.form-label{font-size:12px;color:var(--text2);margin-bottom:6px;display:block}
-.form-input{width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);font-family:var(--sans);font-size:14px;padding:9px 12px;border-radius:var(--radius);outline:none}
-.form-input:focus{border-color:var(--accent)}
-.form-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.modal-actions{display:flex;gap:8px;margin-top:16px}
-.btn-cancel{flex:1;padding:10px;background:none;border:1px solid var(--border2);color:var(--text2);border-radius:var(--radius);cursor:pointer;font-family:var(--sans)}
-.btn-save{flex:2;padding:10px;background:var(--accent);border:none;color:#000;font-weight:500;border-radius:var(--radius);cursor:pointer;font-family:var(--mono);font-size:13px}
-
-.empty{text-align:center;padding:40px;color:var(--text3);font-family:var(--mono);font-size:13px}
-.loading{text-align:center;padding:40px;color:var(--text3);font-family:var(--mono);font-size:12px}
-.loading::after{content:'...';animation:dots 1.2s steps(3,end) infinite}
-@keyframes dots{0%,100%{content:''}33%{content:'.'}66%{content:'..'}100%{content:'...'}}
+body{background:#111;color:#fff;font-family:monospace;padding:20px;font-size:14px}
+button{background:#e8ff4a;color:#000;border:none;padding:12px 20px;border-radius:6px;font-size:14px;margin:8px 0;width:100%;cursor:pointer;font-weight:bold}
+.result{background:#222;border:1px solid #333;padding:12px;border-radius:6px;margin:8px 0;word-break:break-all}
+.ok{color:#4aff8a}.err{color:#ff4a4a}.info{color:#ffb84a}
+video{width:100%;border-radius:6px;margin:8px 0;display:none}
 </style>
 </head>
 <body>
-<div class="app">
-<header>
-  <div class="logo">STOK<span>/TAKİP</span></div>
-  <nav>
-    <button class="nav-btn active" onclick="goPage('scan')">Tara</button>
-    <button class="nav-btn" onclick="goPage('stok')">Stok</button>
-    <button class="nav-btn" onclick="goPage('hareketler')">Hareketler</button>
-    <button class="nav-btn" onclick="goPage('dashboard')">Özet</button>
-  </nav>
-</header>
+<h2>Barkod API Test</h2>
 
-<main>
-
-<!-- SCAN PAGE -->
-<div id="page-scan" class="page active">
-  <div class="scan-layout">
-    <div>
-      <div class="card">
-        <div class="card-title">Barkod Tara</div>
-        <input class="barkod-input" id="barkod-input" type="text" placeholder="Barkodu tara veya yaz..." autocomplete="off" autofocus>
-        <button class="sorgula-btn" id="sorgula-btn" onclick="sorgula()">ÜRÜN BİLGİSİNİ GETİR</button>
-        <button class="kamera-btn" id="kamera-btn" onclick="toggleKamera()">Kamera ile tara</button>
-        <div id="reader"></div>
-        <div class="islem-row">
-          <button class="islem-btn active-giris" id="btn-giris" onclick="setIslem('GİRİŞ')">GİRİŞ</button>
-          <button class="islem-btn" id="btn-cikis" onclick="setIslem('ÇIKIŞ')">ÇIKIŞ</button>
-        </div>
-        <div class="miktar-row">
-          <span class="miktar-label">Miktar:</span>
-          <input class="miktar-input" id="miktar-input" type="number" value="1" min="1">
-          <div class="miktar-stepper">
-            <button class="step-btn" onclick="changeMiktar(1)">+</button>
-            <button class="step-btn" onclick="changeMiktar(-1)">−</button>
-          </div>
-        </div>
-        <button class="submit-btn" id="submit-btn" onclick="submitIslem()">İŞLEM YAP</button>
-      </div>
-    </div>
-    <div>
-      <div class="card">
-        <div class="card-title">Ürün Bilgisi</div>
-        <div id="result-area">
-          <div style="color:var(--text3);font-size:13px;text-align:center;padding:20px 0">Barkod tarandığında ürün bilgisi burada görünür</div>
-        </div>
-      </div>
-    </div>
-  </div>
+<div class="result">
+<div>UserAgent: <span class="info" id="ua"></span></div>
+<div>BarcodeDetector: <span id="bd"></span></div>
+<div>getUserMedia: <span id="gum"></span></div>
 </div>
 
-<!-- STOK PAGE -->
-<div id="page-stok" class="page">
-  <div class="stok-toolbar">
-    <input class="search-input" id="stok-search" placeholder="Ürün ara..." oninput="renderStok()">
-    <button class="filter-btn active" id="filter-hepsi" onclick="setFilter('hepsi')">Hepsi</button>
-    <button class="filter-btn" id="filter-kritik" onclick="setFilter('kritik')">Kritik</button>
-    <button class="filter-btn" id="filter-tukendi" onclick="setFilter('tukendi')">Tükendi</button>
-    <button class="add-btn" onclick="openModal()">+ Ürün Ekle</button>
-  </div>
-  <div id="stok-content"><div class="loading">Yükleniyor</div></div>
-</div>
+<button onclick="testDetector()">BarcodeDetector formatları listele</button>
+<button onclick="testVideo()">Video stream aç</button>
+<button onclick="testScan()">Video + canlı tarama başlat</button>
+<button onclick="testFile()">Fotoğraf çek + analiz et</button>
 
-<!-- HAREKETLER PAGE -->
-<div id="page-hareketler" class="page">
-  <div id="har-content"><div class="loading">Yükleniyor</div></div>
-</div>
-
-<!-- DASHBOARD PAGE -->
-<div id="page-dashboard" class="page">
-  <div class="dash-grid" id="dash-stats"></div>
-  <div id="dash-kritik"></div>
-</div>
-
-</main>
-</div>
-
-<!-- MODAL -->
-<div class="modal-overlay" id="modal" onclick="if(event.target===this)closeModal()">
-  <div class="modal">
-    <div class="modal-title">YENİ ÜRÜN</div>
-    <div class="form-group">
-      <label class="form-label">Barkod *</label>
-      <input class="form-input" id="m-barkod" placeholder="8690123456789">
-    </div>
-    <div class="form-group">
-      <label class="form-label">Ürün adı *</label>
-      <input class="form-input" id="m-urun" placeholder="Ürün adı">
-    </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">Kategori</label>
-        <input class="form-input" id="m-kategori" placeholder="Elektronik">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Birim</label>
-        <input class="form-input" id="m-birim" placeholder="adet">
-      </div>
-    </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">Başlangıç stok</label>
-        <input class="form-input" id="m-stok" type="number" placeholder="0">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Kritik limit</label>
-        <input class="form-input" id="m-limit" type="number" placeholder="5">
-      </div>
-    </div>
-    <div class="modal-actions">
-      <button class="btn-cancel" onclick="closeModal()">İptal</button>
-      <button class="btn-save" onclick="saveUrun()">KAYDET</button>
-    </div>
-  </div>
-</div>
-
-<div class="toast" id="toast"></div>
+<video id="video" autoplay playsinline></video>
+<div id="log"></div>
 
 <script>
-const API = 'https://script.google.com/macros/s/AKfycbxbDtTtXsOQ4-1UG5DTqazcVLX8tVZ5c96i6OflvGryz9pHe-B-5gjpeHlsFEVlmjat/exec';
+const log = (msg, cls='info') => {
+  document.getElementById('log').innerHTML += `<div class="result ${cls}">${msg}</div>`;
+};
 
-let stokData = [];
-let harData = [];
-let aktifIslem = 'GİRİŞ';
-let aktifFilter = 'hepsi';
-let qrScanner = null;
-let kameraAcik = false;
+document.getElementById('ua').textContent = navigator.userAgent.slice(0,80);
+document.getElementById('bd').innerHTML = 'BarcodeDetector' in window 
+  ? '<span class="ok">VAR</span>' : '<span class="err">YOK</span>';
+document.getElementById('gum').innerHTML = navigator.mediaDevices?.getUserMedia 
+  ? '<span class="ok">VAR</span>' : '<span class="err">YOK</span>';
 
-// --- API ---
-async function apiGet(params) {
-  const url = API + '?' + new URLSearchParams(params);
-  const r = await fetch(url);
-  return r.json();
+async function testDetector() {
+  if (!('BarcodeDetector' in window)) { log('BarcodeDetector yok!', 'err'); return; }
+  const formats = await BarcodeDetector.getSupportedFormats();
+  log('Desteklenen formatlar: ' + formats.join(', '), 'ok');
 }
 
-async function apiPost(data) {
-  const r = await fetch(API, {
-    method: 'POST',
-    body: JSON.stringify(data)
-  });
-  return r.json();
-}
-
-// --- NAV ---
-function goPage(name) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('page-' + name).classList.add('active');
-  event.currentTarget.classList.add('active');
-  if (name === 'stok') loadStok();
-  if (name === 'hareketler') loadHareketler();
-  if (name === 'dashboard') loadDashboard();
-}
-
-// --- TOAST ---
-function toast(msg, type = '') {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className = 'toast show ' + type;
-  setTimeout(() => t.className = 'toast', 2800);
-}
-
-// --- SCAN ---
-const barkodInput = document.getElementById('barkod-input');
-
-barkodInput.addEventListener('keydown', e => {
-  if (e.key === 'Enter') {
-    e.preventDefault();
-    sorgula();
-  }
-});
-
-function hesaplaDurum(stok, limit) {
-  const s = parseInt(stok) || 0;
-  const l = parseInt(limit) || 0;
-  if (s === 0) return 'Tükendi';
-  if (s <= l) return 'Kritik';
-  return 'Normal';
-}
-
-async function sorgula() {
-  const barkod = barkodInput.value.trim();
-  if (!barkod) return;
-  const result = document.getElementById('result-area');
-  result.innerHTML = '<div class="loading">Aranıyor</div>';
-  const data = await apiGet({ action: 'search', barkod });
-  if (data.error) {
-    result.innerHTML = `<div style="color:var(--red);font-family:var(--mono);font-size:12px;padding:12px 0">${data.error}</div>`;
-  } else {
-    const durum = hesaplaDurum(data.stok_miktari, data.kritik_limit);
-    const durumClass = durum === 'Kritik' ? 'kritik' : durum === 'Tükendi' ? 'tukendi' : 'normal';
-    result.innerHTML = `
-      <div style="font-size:15px;font-weight:500;margin-bottom:4px">${data.urun_adi}</div>
-      <div style="font-family:var(--mono);font-size:11px;color:var(--text2);margin-bottom:12px">${data.barkod} · ${data.kategori || ''} · ${data.birim || 'adet'}</div>
-      <div style="font-family:var(--mono);font-size:28px;font-weight:500;margin-bottom:4px" class="result-stok ${durumClass}">${data.stok_miktari}</div>
-      <div style="font-size:12px;color:var(--text2)">mevcut stok · limit: ${data.kritik_limit}</div>
-      <div style="margin-top:8px"><span class="durum-pill durum-${durumClass}">${durum}</span></div>
-    `;
-  }
-}
-
-function setIslem(tip) {
-  aktifIslem = tip;
-  document.getElementById('btn-giris').className = 'islem-btn' + (tip === 'GİRİŞ' ? ' active-giris' : '');
-  document.getElementById('btn-cikis').className = 'islem-btn' + (tip === 'ÇIKIŞ' ? ' active-cikis' : '');
-}
-
-function changeMiktar(delta) {
-  const inp = document.getElementById('miktar-input');
-  inp.value = Math.max(1, (parseInt(inp.value) || 1) + delta);
-}
-
-async function submitIslem() {
-  const barkod = barkodInput.value.trim();
-  const miktar = parseInt(document.getElementById('miktar-input').value) || 1;
-  if (!barkod) { toast('Barkod gir!', 'error'); return; }
-
-  const btn = document.getElementById('submit-btn');
-  btn.disabled = true;
-  btn.textContent = 'GÖNDERİLİYOR...';
-
-  const result = await apiPost({ action: 'hareket', barkod, islem: aktifIslem, miktar });
-
-  btn.disabled = false;
-  btn.textContent = 'İŞLEM YAP';
-
-  if (result.error) {
-    toast(result.error, 'error');
-  } else {
-    toast(`${result.urunAdi} → ${result.yeniStok} ${aktifIslem === 'GİRİŞ' ? '↑' : '↓'}`, 'success');
-    barkodInput.value = '';
-    document.getElementById('result-area').innerHTML = '<div style="color:var(--text3);font-size:13px;text-align:center;padding:20px 0">Barkod tarandığında ürün bilgisi burada görünür</div>';
-    document.getElementById('miktar-input').value = 1;
-    barkodInput.focus();
-  }
-}
-
-// --- KAMERA ---
-function toggleKamera() {
-  if (kameraAcik) {
-    stopKamera();
-  } else {
-    startKamera();
-  }
-}
-
-let videoStream = null;
-let scanLoop = null;
-
-async function startKamera() {
-  if (!('BarcodeDetector' in window)) {
-    toast('Bu tarayıcı barkod okumayı desteklemiyor', 'error');
-    return;
-  }
-
-  const readerEl = document.getElementById('reader');
-  readerEl.style.display = 'block';
-  document.getElementById('kamera-btn').textContent = 'Kamerayı kapat';
-  kameraAcik = true;
-
-  const video = document.createElement('video');
-  video.setAttribute('playsinline', 'true');
-  video.setAttribute('autoplay', 'true');
-  video.style.cssText = 'width:100%;border-radius:6px;display:block';
-  readerEl.innerHTML = '';
-  readerEl.appendChild(video);
-
+async function testVideo() {
   try {
-    videoStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+    const stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+    const v = document.getElementById('video');
+    v.style.display = 'block';
+    v.srcObject = stream;
+    await v.play();
+    log('Video açıldı: ' + v.videoWidth + 'x' + v.videoHeight, 'ok');
+    setTimeout(() => log('Video boyut: ' + v.videoWidth + 'x' + v.videoHeight, 'ok'), 1000);
+  } catch(e) { log('Video hatası: ' + e.message, 'err'); }
+}
+
+async function testScan() {
+  if (!('BarcodeDetector' in window)) { log('BarcodeDetector yok!', 'err'); return; }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:'environment', width:{ideal:1920}, height:{ideal:1080}}
     });
-    video.srcObject = videoStream;
-    await video.play();
-  } catch(e) {
-    toast('Kamera açılamadı', 'error');
-    stopKamera();
-    return;
-  }
+    const v = document.getElementById('video');
+    v.style.display = 'block';
+    v.srcObject = stream;
+    await v.play();
+    log('Tarama başladı — barkodu kameraya göster...', 'info');
 
-  const detector = new BarcodeDetector({
-    formats: ['ean_13','ean_8','code_128','code_39','upc_a','upc_e','qr_code','itf','codabar']
-  });
+    const detector = new BarcodeDetector({formats: await BarcodeDetector.getSupportedFormats()});
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    let count = 0;
 
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
+    const interval = setInterval(async () => {
+      count++;
+      if (!v.videoWidth) return;
+      canvas.width = v.videoWidth;
+      canvas.height = v.videoHeight;
+      ctx.drawImage(v, 0, 0);
+      try {
+        const codes = await detector.detect(canvas);
+        if (codes.length > 0) {
+          clearInterval(interval);
+          stream.getTracks().forEach(t=>t.stop());
+          v.style.display = 'none';
+          log('BARKOD BULUNDU: ' + codes[0].rawValue + ' (' + codes[0].format + ')', 'ok');
+        } else if (count % 10 === 0) {
+          log('Taranıyor... (' + count + ' frame)', 'info');
+        }
+      } catch(e) { log('Detect hatası: ' + e.message, 'err'); clearInterval(interval); }
+    }, 100);
 
-  scanLoop = setInterval(async () => {
-    if (!video.videoWidth) return;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    ctx.drawImage(video, 0, 0);
+    setTimeout(() => { clearInterval(interval); log('30sn timeout', 'err'); }, 30000);
+  } catch(e) { log('Hata: ' + e.message, 'err'); }
+}
+
+async function testFile() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.capture = 'environment';
+  input.onchange = async () => {
+    const file = input.files[0];
+    if (!file) return;
+    log('Dosya: ' + file.name + ' (' + file.size + ' byte)', 'info');
+    if (!('BarcodeDetector' in window)) { log('BarcodeDetector yok!', 'err'); return; }
     try {
-      const barcodes = await detector.detect(canvas);
-      if (barcodes.length > 0) {
-        barkodInput.value = barcodes[0].rawValue;
-        sorgula();
-        stopKamera();
+      const detector = new BarcodeDetector({formats: await BarcodeDetector.getSupportedFormats()});
+      const img = await createImageBitmap(file);
+      log('Resim: ' + img.width + 'x' + img.height, 'info');
+      const codes = await detector.detect(img);
+      if (codes.length > 0) {
+        log('BARKOD: ' + codes[0].rawValue + ' (' + codes[0].format + ')', 'ok');
+      } else {
+        log('Barkod bulunamadı', 'err');
       }
-    } catch(e) {}
-  }, 200);
-}
-
-function stopKamera() {
-  if (scanLoop) { clearInterval(scanLoop); scanLoop = null; }
-  if (videoStream) { videoStream.getTracks().forEach(t => t.stop()); videoStream = null; }
-  document.getElementById('reader').innerHTML = '';
-  document.getElementById('reader').style.display = 'none';
-  document.getElementById('kamera-btn').textContent = 'Kamera ile tara';
-  kameraAcik = false;
-}
-
-// --- STOK ---
-async function loadStok() {
-  document.getElementById('stok-content').innerHTML = '<div class="loading">Yükleniyor</div>';
-  stokData = await apiGet({ action: 'getStok' });
-  renderStok();
-}
-
-function setFilter(f) {
-  aktifFilter = f;
-  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('filter-' + f).classList.add('active');
-  renderStok();
-}
-
-function renderStok() {
-  const q = document.getElementById('stok-search').value.toLowerCase();
-  let data = stokData;
-  if (!Array.isArray(data)) { document.getElementById('stok-content').innerHTML = '<div class="empty">Veri yüklenemedi</div>'; return; }
-  if (aktifFilter === 'kritik') data = data.filter(u => hesaplaDurum(u.stok_miktari, u.kritik_limit) === 'Kritik');
-  if (aktifFilter === 'tukendi') data = data.filter(u => hesaplaDurum(u.stok_miktari, u.kritik_limit) === 'Tükendi');
-  if (q) data = data.filter(u => (u.urun_adi||'').toLowerCase().includes(q) || String(u.barkod).includes(q));
-
-  if (!data.length) {
-    document.getElementById('stok-content').innerHTML = '<div class="empty">Ürün bulunamadı</div>';
-    return;
-  }
-
-  document.getElementById('stok-content').innerHTML = `
-    <table class="stok-table">
-      <thead><tr>
-        <th>Barkod</th><th>Ürün</th><th>Kategori</th><th style="text-align:right">Stok</th><th style="text-align:right">Limit</th><th>Durum</th>
-      </tr></thead>
-      <tbody>${data.map(u => {
-        const durum = hesaplaDurum(u.stok_miktari, u.kritik_limit);
-        return `
-        <tr>
-          <td class="barkod-cell">${u.barkod}</td>
-          <td>${u.urun_adi}</td>
-          <td style="color:var(--text2)">${u.kategori||'-'}</td>
-          <td style="text-align:right"><span class="stok-num">${u.stok_miktari}</span> <span style="color:var(--text3);font-size:11px">${u.birim||''}</span></td>
-          <td style="text-align:right;color:var(--text2)">${u.kritik_limit}</td>
-          <td><span class="durum-pill durum-${durum.toLowerCase()}">${durum}</span></td>
-        </tr>`;}).join('')}
-      </tbody>
-    </table>`;
-}
-
-// --- HAREKETLER ---
-async function loadHareketler() {
-  document.getElementById('har-content').innerHTML = '<div class="loading">Yükleniyor</div>';
-  harData = await apiGet({ action: 'getHareketler' });
-  renderHareketler();
-}
-
-function renderHareketler() {
-  if (!Array.isArray(harData) || !harData.length) {
-    document.getElementById('har-content').innerHTML = '<div class="empty">Henüz hareket yok</div>';
-    return;
-  }
-  document.getElementById('har-content').innerHTML = `
-    <div class="har-list">${harData.map(h => {
-      const tip = String(h.islem_tipi || '');
-      const isGiris = tip === 'GİRİŞ';
-      const ts = h.timestamp ? new Date(h.timestamp) : null;
-      const zaman = ts ? ts.toLocaleDateString('tr-TR') + ' ' + ts.toLocaleTimeString('tr-TR', {hour:'2-digit',minute:'2-digit'}) : '';
-      return `<div class="har-item">
-        <span class="har-tip ${isGiris ? 'har-giris' : 'har-cikis'}">${tip}</span>
-        <div>
-          <div class="har-urun">${h.urun_adi||''}</div>
-          <div class="har-barkod">${h.barkod||''}</div>
-        </div>
-        <div class="har-miktar ${isGiris ? 'giris' : 'cikis'}">${isGiris ? '+' : '-'}${h.miktar}</div>
-        <div class="har-zaman">${zaman}</div>
-      </div>`;
-    }).join('')}</div>`;
-}
-
-// --- DASHBOARD ---
-async function loadDashboard() {
-  if (!stokData.length) stokData = await apiGet({ action: 'getStok' });
-  const data = Array.isArray(stokData) ? stokData : [];
-  const toplam = data.length;
-  const kritik = data.filter(u => hesaplaDurum(u.stok_miktari, u.kritik_limit) === 'Kritik').length;
-  const tukendi = data.filter(u => hesaplaDurum(u.stok_miktari, u.kritik_limit) === 'Tükendi').length;
-  const normal = toplam - kritik - tukendi;
-
-  document.getElementById('dash-stats').innerHTML = `
-    <div class="stat-card"><div class="stat-label">Toplam ürün</div><div class="stat-val ok">${toplam}</div></div>
-    <div class="stat-card"><div class="stat-label">Normal</div><div class="stat-val ok">${normal}</div></div>
-    <div class="stat-card"><div class="stat-label">Kritik</div><div class="stat-val warn">${kritik}</div></div>
-    <div class="stat-card"><div class="stat-label">Tükendi</div><div class="stat-val danger">${tukendi}</div></div>
-  `;
-
-  const kritikler = data.filter(u => {
-    const d = hesaplaDurum(u.stok_miktari, u.kritik_limit);
-    return d === 'Kritik' || d === 'Tükendi';
-  });
-  document.getElementById('dash-kritik').innerHTML = kritikler.length ? `
-    <div class="card-title" style="font-family:var(--mono);font-size:11px;color:var(--text3);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:12px">Dikkat Gerektiren Ürünler</div>
-    <table class="stok-table">
-      <thead><tr><th>Ürün</th><th>Barkod</th><th style="text-align:right">Stok</th><th>Durum</th></tr></thead>
-      <tbody>${kritikler.map(u => {
-        const d = hesaplaDurum(u.stok_miktari, u.kritik_limit);
-        return `<tr>
-          <td>${u.urun_adi}</td>
-          <td class="barkod-cell">${u.barkod}</td>
-          <td style="text-align:right"><span class="stok-num">${u.stok_miktari}</span></td>
-          <td><span class="durum-pill durum-${d.toLowerCase()}">${d}</span></td>
-        </tr>`;}).join('')}
-      </tbody>
-    </table>` : '<div style="color:var(--text3);font-family:var(--mono);font-size:13px">Kritik veya tükenen ürün yok</div>';
-}
-
-// --- MODAL ---
-function openModal() {
-  document.getElementById('modal').classList.add('show');
-  document.getElementById('m-barkod').focus();
-}
-function closeModal() {
-  document.getElementById('modal').classList.remove('show');
-  ['m-barkod','m-urun','m-kategori','m-birim','m-stok','m-limit'].forEach(id => document.getElementById(id).value = '');
-}
-async function saveUrun() {
-  const barkod = document.getElementById('m-barkod').value.trim();
-  const urun_adi = document.getElementById('m-urun').value.trim();
-  if (!barkod || !urun_adi) { toast('Barkod ve ürün adı zorunlu', 'error'); return; }
-  const result = await apiPost({
-    action: 'urunEkle',
-    barkod,
-    urun_adi,
-    kategori: document.getElementById('m-kategori').value.trim(),
-    birim: document.getElementById('m-birim').value.trim() || 'adet',
-    stok_miktari: document.getElementById('m-stok').value || 0,
-    kritik_limit: document.getElementById('m-limit').value || 5
-  });
-  if (result.success) {
-    toast('Ürün eklendi', 'success');
-    closeModal();
-    loadStok();
-  } else {
-    toast(result.error || 'Hata', 'error');
-  }
+    } catch(e) { log('Hata: ' + e.message, 'err'); }
+  };
+  input.click();
 }
 </script>
 </body>
