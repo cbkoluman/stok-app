@@ -870,8 +870,8 @@ function renderSayimDetay(){
     (!tamamlandi?
       '<div style="margin-bottom:12px">'+
         '<div class="lokasyon-tabs">'+
-          '<div class="lok-tab'+(aktifLokasyon==='salon'?' active':'')+'" onclick="setLokasyon('salon')">Salon</div>'+
-          '<div class="lok-tab'+(aktifLokasyon==='depo'?' active':'')+'" onclick="setLokasyon('depo')">Depo</div>'+
+          '<div class="lok-tab'+(aktifLokasyon==='salon'?' active':'')+'" onclick="setLokasyon(&quot;salon&quot;)">Salon</div>'+
+          '<div class="lok-tab'+(aktifLokasyon==='depo'?' active':'')+'" onclick="setLokasyon(&quot;depo&quot;)">Depo</div>'+
         '</div>'+
         '<div style="display:flex;gap:8px;margin-bottom:6px">'+
           '<input class="inp inp-mono" id="sayim-barkod-inp" placeholder="Barkod tara..." style="flex:1" autocomplete="off">'+
@@ -883,14 +883,16 @@ function renderSayimDetay(){
       '</div>'
     :'')+
     '<div class="sayim-filter-row">'+
-      ['hepsi','sayilmadi','sayildi','sapma'].map(f=>'<button class="sayim-filter-btn'+(sayimFiltreAktif===f?' active':'')+'" onclick="setSayimFiltre(''+f+'')">'+{hepsi:'Hepsi',sayilmadi:'Sayılmadı',sayildi:'Sayıldı',sapma:'Sapma'}[f]+'</button>').join('')+
+      ['hepsi','sayilmadi','sayildi','sapma'].map(f=>'<button class="sayim-filter-btn'+(sayimFiltreAktif===f?' active':'')+'" data-filtre="'+f+'">'+{hepsi:'Hepsi',sayilmadi:'Sayılmadı',sayildi:'Sayıldı',sapma:'Sapma'}[f]+'</button>').join('')+
     '</div>'+
     '<div id="sayim-urun-liste">'+urunListHTML+'</div>';
 
-  // event delegation — düzenle ve gir butonları
-  const liste=document.getElementById('sayim-urun-liste');
-  if(liste){
-    liste.addEventListener('click',e=>{
+  // event delegation — filtre, düzenle, gir butonları
+  const sayimAnaEl=document.getElementById('sayim-ana');
+  if(sayimAnaEl){
+    sayimAnaEl.addEventListener('click',e=>{
+      const fb=e.target.dataset.filtre;
+      if(fb){sayimFiltreAktif=fb;renderSayimDetay();return;}
       const db2=e.target.dataset.duzenle;
       if(db2){window.sayimDuzenle(db2);return;}
       const hb=e.target.dataset.hizli;
