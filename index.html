@@ -144,6 +144,14 @@ main{flex:1;padding:20px;max-width:1100px;margin:0 auto;width:100%}
 .sayim-fark.zero{color:var(--text3)}
 .sayim-miktar-inp{width:70px;background:var(--surface2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:15px;padding:6px 8px;border-radius:var(--radius);outline:none;text-align:center}
 .sayim-miktar-inp:focus{border-color:var(--accent)}
+.lokasyon-tabs{display:flex;gap:4px;margin-bottom:12px}
+.lok-tab{flex:1;padding:8px;background:var(--surface2);border:1px solid var(--border2);color:var(--text2);font-family:var(--mono);font-size:12px;border-radius:var(--radius);cursor:pointer;text-align:center;transition:all .15s}
+.lok-tab.active{background:var(--surface2);border-color:var(--accent);color:var(--accent)}
+.lok-stok-bilgi{display:flex;gap:16px;margin-top:6px;flex-wrap:wrap}
+.lok-stok-item{font-family:var(--mono);font-size:11px;color:var(--text2)}
+.lok-stok-item span{font-size:14px;font-weight:500;display:block;color:var(--text)}
+.duzenle-btn{background:none;border:none;color:var(--text3);font-size:11px;cursor:pointer;padding:2px 6px;border-radius:3px;font-family:var(--mono)}
+.duzenle-btn:hover{color:var(--accent);background:var(--surface2)}
 .sayim-ozet-bar{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;margin-bottom:16px;display:flex;gap:20px;flex-wrap:wrap}
 .sayim-ozet-item{font-family:var(--mono);font-size:12px;color:var(--text2)}
 .sayim-ozet-item span{font-size:16px;font-weight:500;color:var(--text);display:block}
@@ -711,7 +719,7 @@ async function startSayimKamera(){
         stopSayimKamera();
         // sisteme stok miktarını otomatik doldur
         const u=Object.values(stokCache).find(u=>String(u.barkod)===String(codes[0].rawValue));
-        if(u&&mi&&!mi.value){ mi.value=u.stok_miktari; }
+        if(u&&mi){ const mevcut=sayimCache[codes[0].rawValue]; const lokVal=mevcut?(aktifLokasyon==='salon'?mevcut.salon||0:mevcut.depo||0):0; if(!mi.value) mi.value=lokVal||''; }
         if(mi){ mi.focus(); mi.select(); }
         toast((u?.urun_adi||codes[0].rawValue)+' tarandı');
       }
@@ -803,73 +811,92 @@ window.acSayim=function(id){
 let sayimFiltreAktif='hepsi';
 let sayimDetayBarkodInput=null;
 
+let aktifLokasyon='salon';
+
 function renderSayimDetay(){
   const oturum=sayimOturumlar.find(s=>s._id===aktifSayimId)||{sayilanlar:{}};
   const tamamlandi=oturum.durum==='tamamlandi';
   const urunler=Object.values(stokCache);
   const sayilanlar=sayimCache;
-
   const toplamUrun=urunler.length;
   const sayilanSayisi=Object.keys(sayilanlar).length;
-  const sapmalar=Object.values(sayilanlar).filter(x=>x.fark!==0);
-  const toplamFazla=sapmalar.filter(x=>x.fark>0).reduce((a,x)=>a+x.fark,0);
-  const toplamEksik=sapmalar.filter(x=>x.fark<0).reduce((a,x)=>a+Math.abs(x.fark),0);
-
+  const sapmalar=Object.values(sayilanlar).filter(x=>((x.salon||0)+(x.depo||0))!==x.sistemStok);
+  const toplamFazla=sapmalar.filter(x=>(x.salon||0)+(x.depo||0)>x.sistemStok).reduce((a,x)=>a+((x.salon||0)+(x.depo||0)-x.sistemStok),0);
+  const toplamEksik=sapmalar.filter(x=>(x.salon||0)+(x.depo||0)<x.sistemStok).reduce((a,x)=>a+(x.sistemStok-(x.salon||0)-(x.depo||0)),0);
   let filtreliUrunler=[...urunler];
   if(sayimFiltreAktif==='sayilmadi') filtreliUrunler=urunler.filter(u=>!sayilanlar[u.barkod]);
-  if(sayimFiltreAktif==='sapma') filtreliUrunler=urunler.filter(u=>sayilanlar[u.barkod]&&sayilanlar[u.barkod].fark!==0);
+  if(sayimFiltreAktif==='sapma') filtreliUrunler=urunler.filter(u=>{const s=sayilanlar[u.barkod];return s&&((s.salon||0)+(s.depo||0))!==s.sistemStok;});
   if(sayimFiltreAktif==='sayildi') filtreliUrunler=urunler.filter(u=>sayilanlar[u.barkod]);
-
+  const isAndroidBC=/android/i.test(navigator.userAgent)&&'BarcodeDetector' in window;
   const el=document.getElementById('sayim-ana');
-  el.innerHTML=`
-    <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
-      <button class="btn-ghost" onclick="renderSayimAna()">← Geri</button>
-      <div style="flex:1;font-weight:500">${oturum.ad||'Sayım'}</div>
-      ${!tamamlandi?`<button class="btn-accent" onclick="sayimiTamamla()">Sayımı Uygula</button>`:'<span class="durum-pill durum-normal">Tamamlandı</span>'}
-    </div>
+  const urunListHTML=filtreliUrunler.sort((a,b)=>{
+    const as2=!!sayilanlar[a.barkod],bs2=!!sayilanlar[b.barkod];
+    if(as2&&!bs2) return 1; if(!as2&&bs2) return -1; return 0;
+  }).map(u=>{
+    const s=sayilanlar[u.barkod];
+    const toplam=s?(s.salon||0)+(s.depo||0):null;
+    const fark=s?toplam-s.sistemStok:null;
+    const farkClass=fark===null?'':fark>0?'sapma-pos':fark<0?'sapma-neg':'sapma-ok';
+    return '<div class="sayim-urun-satir'+(s?' sayildi':'')+' '+farkClass+'" data-barkod="'+u.barkod+'">'+
+      '<div style="flex:1;min-width:0">'+
+        '<div class="sayim-urun-ad">'+u.urun_adi+'</div>'+
+        '<div class="sayim-urun-barkod">'+u.barkod+'</div>'+
+        (s?'<div class="lok-stok-bilgi">'+
+          '<div class="lok-stok-item"><span>'+(s.salon||0)+'</span>salon</div>'+
+          '<div class="lok-stok-item"><span>'+(s.depo||0)+'</span>depo</div>'+
+          '<div class="lok-stok-item"><span style="color:'+(fark===0?'var(--green)':fark>0?'var(--green)':'var(--red)')+'">'+toplam+'</span>toplam</div>'+
+        '</div>':'')+'</div>'+
+      '<div class="sayim-stok-bilgi"><span>'+u.stok_miktari+'</span>sistemde</div>'+
+      (s?'<div style="display:flex;flex-direction:column;align-items:center;gap:4px">'+
+        '<div class="sayim-fark '+(fark>0?'pos':fark<0?'neg':'zero')+'">'+(fark>0?'+':'')+fark+'</div>'+
+        (!tamamlandi?'<button class="duzenle-btn" data-duzenle="'+u.barkod+'">düzenle</button>':'')+
+      '</div>':
+      '<div>'+(!tamamlandi?'<button class="btn-ghost" style="font-size:11px;padding:5px 8px" data-hizli="'+u.barkod+'" data-stok="'+u.stok_miktari+'">Gir</button>':'—')+'</div>')+
+    '</div>';
+  }).join('');
 
-    <div class="sayim-ozet-bar">
-      <div class="sayim-ozet-item"><span>${sayilanSayisi}/${toplamUrun}</span>Sayılan</div>
-      <div class="sayim-ozet-item"><span style="color:var(--amber)">${sapmalar.length}</span>Sapma</div>
-      <div class="sayim-ozet-item"><span style="color:var(--green)">+${toplamFazla}</span>Fazla</div>
-      <div class="sayim-ozet-item"><span style="color:var(--red)">-${toplamEksik}</span>Eksik</div>
-    </div>
+  el.innerHTML=
+    '<div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap">'+
+      '<button class="btn-ghost" onclick="renderSayimAna()">← Geri</button>'+
+      '<div style="flex:1;font-weight:500">'+(oturum.ad||'Sayım')+'</div>'+
+      (!tamamlandi?'<button class="btn-accent" onclick="sayimiTamamla()">Sayımı Uygula</button>':'<span class="durum-pill durum-normal">Tamamlandı</span>')+
+    '</div>'+
+    '<div class="sayim-ozet-bar">'+
+      '<div class="sayim-ozet-item"><span>'+sayilanSayisi+'/'+toplamUrun+'</span>Sayılan</div>'+
+      '<div class="sayim-ozet-item"><span style="color:var(--amber)">'+sapmalar.length+'</span>Sapma</div>'+
+      '<div class="sayim-ozet-item"><span style="color:var(--green)">+'+toplamFazla+'</span>Fazla</div>'+
+      '<div class="sayim-ozet-item"><span style="color:var(--red)">-'+toplamEksik+'</span>Eksik</div>'+
+    '</div>'+
+    (!tamamlandi?
+      '<div style="margin-bottom:12px">'+
+        '<div class="lokasyon-tabs">'+
+          '<div class="lok-tab'+(aktifLokasyon==='salon'?' active':'')+'" onclick="setLokasyon('salon')">Salon</div>'+
+          '<div class="lok-tab'+(aktifLokasyon==='depo'?' active':'')+'" onclick="setLokasyon('depo')">Depo</div>'+
+        '</div>'+
+        '<div style="display:flex;gap:8px;margin-bottom:6px">'+
+          '<input class="inp inp-mono" id="sayim-barkod-inp" placeholder="Barkod tara..." style="flex:1" autocomplete="off">'+
+          '<input class="inp" id="sayim-miktar-inp" type="number" placeholder="Miktar" min="0" style="width:90px;text-align:center">'+
+          '<button class="btn-accent" onclick="sayimEkle()">Ekle</button>'+
+        '</div>'+
+        (isAndroidBC?'<button class="kamera-btn" id="sayim-kamera-btn" onclick="toggleSayimKamera()">Kamera ile tara</button>':'')+
+        '<div id="sayim-reader" style="border-radius:6px;overflow:hidden;display:none;margin-top:6px"></div>'+
+      '</div>'
+    :'')+
+    '<div class="sayim-filter-row">'+
+      ['hepsi','sayilmadi','sayildi','sapma'].map(f=>'<button class="sayim-filter-btn'+(sayimFiltreAktif===f?' active':'')+'" onclick="setSayimFiltre(''+f+'')">'+{hepsi:'Hepsi',sayilmadi:'Sayılmadı',sayildi:'Sayıldı',sapma:'Sapma'}[f]+'</button>').join('')+
+    '</div>'+
+    '<div id="sayim-urun-liste">'+urunListHTML+'</div>';
 
-    ${!tamamlandi?`<div style="margin-bottom:12px">
-      <div style="display:flex;gap:8px;margin-bottom:6px">
-        <input class="inp inp-mono" id="sayim-barkod-inp" placeholder="Barkod tara..." style="flex:1" autocomplete="off">
-        <input class="inp" id="sayim-miktar-inp" type="number" placeholder="Miktar" min="0" style="width:90px;text-align:center">
-        <button class="btn-accent" onclick="sayimEkle()">Ekle</button>
-      </div>
-      <button class="kamera-btn${/android/i.test(navigator.userAgent)&&'BarcodeDetector' in window?'':' hidden'}" id="sayim-kamera-btn" onclick="toggleSayimKamera()">Kamera ile tara</button>
-      <div id="sayim-reader" style="border-radius:6px;overflow:hidden;display:none;margin-top:6px"></div>
-    </div>`:''}
-
-    <div class="sayim-filter-row">
-      ${['hepsi','sayilmadi','sayildi','sapma'].map(f=>`<button class="sayim-filter-btn${sayimFiltreAktif===f?' active':''}" onclick="setSayimFiltre('${f}')">${{hepsi:'Hepsi',sayilmadi:'Sayılmadı',sayildi:'Sayıldı',sapma:'Sapma'}[f]}</button>`).join('')}
-    </div>
-
-    <div id="sayim-urun-liste">
-      ${filtreliUrunler.sort((a,b)=>{
-        const as=!!sayilanlar[a.barkod], bs=!!sayilanlar[b.barkod];
-        if(as&&!bs) return 1; if(!as&&bs) return -1; return 0;
-      }).map(u=>{
-        const s=sayilanlar[u.barkod];
-        const fark=s?s.fark:null;
-        const farkClass=fark===null?'':fark>0?'sapma-pos':fark<0?'sapma-neg':'sapma-ok';
-        return `<div class="sayim-urun-satir${s?' sayildi':''} ${farkClass}">
-          <div>
-            <div class="sayim-urun-ad">${u.urun_adi}</div>
-            <div class="sayim-urun-barkod">${u.barkod}</div>
-          </div>
-          <div class="sayim-stok-bilgi"><span>${u.stok_miktari}</span>sistemde</div>
-          ${s?`<div class="sayim-stok-bilgi"><span style="color:${fark===0?'var(--green)':fark>0?'var(--green)':'var(--red)'}">${s.sayilan}</span>sayılan</div>
-          <div class="sayim-fark ${fark>0?'pos':fark<0?'neg':'zero'}">${fark>0?'+':''}${fark}</div>`
-          :`<div class="sayim-stok-bilgi"><span style="color:var(--text3)">—</span>sayılan</div>
-          ${!tamamlandi?`<button class="btn-ghost" style="font-size:11px;padding:5px 8px" onclick="sayimHizliEkle('${u.barkod}','${u.urun_adi}',${u.stok_miktari})">Gir</button>`:'<div></div>'}`}
-        </div>`;}).join('')}
-    </div>
-  `;
+  // event delegation — düzenle ve gir butonları
+  const liste=document.getElementById('sayim-urun-liste');
+  if(liste){
+    liste.addEventListener('click',e=>{
+      const db2=e.target.dataset.duzenle;
+      if(db2){window.sayimDuzenle(db2);return;}
+      const hb=e.target.dataset.hizli;
+      if(hb){window.sayimHizliEkle(hb,'',e.target.dataset.stok);return;}
+    },{once:true});
+  }
 
   if(!tamamlandi){
     const bi=document.getElementById('sayim-barkod-inp');
@@ -879,12 +906,32 @@ function renderSayimDetay(){
         if(e.key==='Enter'){e.preventDefault();
           const barkod=bi.value.trim();
           const mi=document.getElementById('sayim-miktar-inp');
-          if(barkod) sayimEkleManuel(barkod, mi?.value);
+          if(barkod) sayimEkleManuel(barkod,mi?.value,aktifLokasyon);
         }
       });
     }
   }
 }
+
+window.setLokasyon=function(lok){aktifLokasyon=lok;renderSayimDetay();};
+
+window.sayimDuzenle=function(barkod){
+  const s=sayimCache[barkod];
+  if(!s) return;
+  const u=Object.values(stokCache).find(u=>String(u.barkod)===String(barkod));
+  const yeniSalon=prompt((u?.urun_adi||barkod)+' — Salon miktarı:',s.salon||0);
+  if(yeniSalon===null) return;
+  const yeniDepo=prompt((u?.urun_adi||barkod)+' — Depo miktarı:',s.depo||0);
+  if(yeniDepo===null) return;
+  const salon=parseInt(yeniSalon)||0;
+  const depo=parseInt(yeniDepo)||0;
+  const toplam=salon+depo;
+  const fark=toplam-(parseInt(u?.stok_miktari)||0);
+  sayimCache[barkod]={...s,salon,depo,sayilan:toplam,fark};
+  updateDoc(doc(db,'sayimlar',aktifSayimId),{sayilanlar:sayimCache});
+  renderSayimDetay();
+  toast((u?.urun_adi||barkod)+' güncellendi');
+};
 
 window.setSayimFiltre=function(f){sayimFiltreAktif=f;renderSayimDetay();};
 
@@ -892,30 +939,37 @@ window.sayimHizliEkle=function(barkod,ad,sistemStok){
   const el=document.getElementById('sayim-barkod-inp');
   const mi=document.getElementById('sayim-miktar-inp');
   if(el) el.value=barkod;
-  if(mi){mi.value=sistemStok;mi.focus();mi.select();}
+  // mevcut lokasyondaki değeri doldur
+  const mevcut=sayimCache[barkod];
+  const lokVal=mevcut?(aktifLokasyon==='salon'?mevcut.salon||0:mevcut.depo||0):0;
+  if(mi){mi.value=lokVal||'';mi.focus();mi.select();}
 };
 
 window.sayimEkle=function(){
   const bi=document.getElementById('sayim-barkod-inp');
   const mi=document.getElementById('sayim-miktar-inp');
   if(!bi?.value.trim()) return;
-  sayimEkleManuel(bi.value.trim(), mi?.value);
+  sayimEkleManuel(bi.value.trim(), mi?.value, aktifLokasyon);
 };
 
-function sayimEkleManuel(barkod, miktarStr){
+function sayimEkleManuel(barkod, miktarStr, lokasyon='salon'){
   const u=Object.values(stokCache).find(u=>String(u.barkod)===String(barkod));
   if(!u){toast('Barkod bulunamadı: '+barkod,'error');return;}
-  const sayilan=parseInt(miktarStr);
-  if(isNaN(sayilan)||sayilan<0){toast('Geçerli miktar gir','error');return;}
-  const fark=sayilan-(parseInt(u.stok_miktari)||0);
-  sayimCache[barkod]={barkod,urun_adi:u.urun_adi,sistemStok:parseInt(u.stok_miktari)||0,sayilan,fark};
+  const miktar=parseInt(miktarStr);
+  if(isNaN(miktar)||miktar<0){toast('Geçerli miktar gir','error');return;}
+  const mevcut=sayimCache[barkod]||{barkod,urun_adi:u.urun_adi,sistemStok:parseInt(u.stok_miktari)||0,salon:0,depo:0};
+  mevcut[lokasyon]=miktar;
+  const toplam=(mevcut.salon||0)+(mevcut.depo||0);
+  mevcut.sayilan=toplam;
+  mevcut.fark=toplam-mevcut.sistemStok;
+  sayimCache[barkod]=mevcut;
   updateDoc(doc(db,'sayimlar',aktifSayimId),{sayilanlar:sayimCache});
   const bi=document.getElementById('sayim-barkod-inp');
   const mi=document.getElementById('sayim-miktar-inp');
   if(bi){bi.value='';bi.focus();}
   if(mi) mi.value='';
   renderSayimDetay();
-  toast(`${u.urun_adi}: ${sayilan} (fark: ${fark>0?'+':''}${fark})`);
+  toast(`${u.urun_adi} ${lokasyon}: ${miktar} (toplam: ${toplam})`);
 }
 
 window.sayimiTamamla=async function(){
