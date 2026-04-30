@@ -370,9 +370,16 @@ document.addEventListener('click',e=>{
   const fb=e.target.closest('[data-filtre]');
   if(fb&&fb.dataset.filtre){sayimFiltreAktif=fb.dataset.filtre;if(aktifSayimId)renderSayimDetay();return;}
   const db2=e.target.closest('[data-duzenle]');
-  if(db2&&db2.dataset.duzenle){window.sayimDuzenle&&window.sayimDuzenle(db2.dataset.duzenle);return;}
+  if(db2&&db2.dataset.duzenle){
+    const lok=db2.dataset.duzenleLok||null;
+    window.sayimDuzenle&&window.sayimDuzenle(db2.dataset.duzenle,lok);return;
+  }
   const hb=e.target.closest('[data-hizli]');
-  if(hb&&hb.dataset.hizli){window.sayimHizliEkle&&window.sayimHizliEkle(hb.dataset.hizli,'',hb.dataset.stok);return;}
+  if(hb&&hb.dataset.hizli){
+    const lok=hb.dataset.lok||aktifLokasyon||'salon';
+    aktifLokasyon=lok;
+    window.sayimHizliEkle&&window.sayimHizliEkle(hb.dataset.hizli,'',hb.dataset.stok);return;
+  }
 });
 let harCache = [];
 let aktifIslem = 'GİRİŞ';
@@ -847,21 +854,43 @@ function renderSayimDetay(){
     const toplam=s?(s.salon||0)+(s.depo||0):null;
     const fark=s?toplam-s.sistemStok:null;
     const farkClass=fark===null?'':fark>0?'sapma-pos':fark<0?'sapma-neg':'sapma-ok';
-    return '<div class="sayim-urun-satir'+(s?' sayildi':'')+' '+farkClass+'" data-barkod="'+u.barkod+'">'+
+    const salonGirildi=s&&s.salon!==undefined&&s.salon!==null;
+    const depoGirildi=s&&s.depo!==undefined&&s.depo!==null;
+    const herhangiGirildi=salonGirildi||depoGirildi;
+    return '<div class="sayim-urun-satir'+(herhangiGirildi?' sayildi':'')+' '+farkClass+'" data-barkod="'+u.barkod+'">'+
       '<div style="flex:1;min-width:0">'+
         '<div class="sayim-urun-ad">'+u.urun_adi+'</div>'+
         '<div class="sayim-urun-barkod">'+u.barkod+'</div>'+
-        (s?'<div class="lok-stok-bilgi">'+
-          '<div class="lok-stok-item"><span>'+(s.salon||0)+'</span>salon</div>'+
-          '<div class="lok-stok-item"><span>'+(s.depo||0)+'</span>depo</div>'+
-          '<div class="lok-stok-item"><span style="color:'+(fark===0?'var(--green)':fark>0?'var(--green)':'var(--red)')+'">'+toplam+'</span>toplam</div>'+
-        '</div>':'')+'</div>'+
+        '<div class="lok-stok-bilgi" style="margin-top:6px">'+
+          // salon satırı
+          '<div class="lok-stok-item" style="display:flex;align-items:center;gap:6px">'+
+            '<span style="color:var(--text3);min-width:36px">salon</span>'+
+            (salonGirildi
+              ? '<span style="font-size:14px;font-weight:500;color:var(--text)">'+(s.salon||0)+'</span>'+
+                (!tamamlandi?'<button class="duzenle-btn" data-duzenleLok="salon" data-duzenle="'+u.barkod+'">düzenle</button>':'')
+              : (!tamamlandi?'<button class="btn-ghost" style="font-size:11px;padding:3px 8px" data-hizli="'+u.barkod+'" data-lok="salon" data-stok="'+u.stok_miktari+'">Gir</button>':'—')
+            )+
+          '</div>'+
+          // depo satırı
+          '<div class="lok-stok-item" style="display:flex;align-items:center;gap:6px;margin-top:4px">'+
+            '<span style="color:var(--text3);min-width:36px">depo</span>'+
+            (depoGirildi
+              ? '<span style="font-size:14px;font-weight:500;color:var(--text)">'+(s.depo||0)+'</span>'+
+                (!tamamlandi?'<button class="duzenle-btn" data-duzenleLok="depo" data-duzenle="'+u.barkod+'">düzenle</button>':'')
+              : (!tamamlandi?'<button class="btn-ghost" style="font-size:11px;padding:3px 8px" data-hizli="'+u.barkod+'" data-lok="depo" data-stok="'+u.stok_miktari+'">Gir</button>':'—')
+            )+
+          '</div>'+
+          // toplam
+          (herhangiGirildi?
+            '<div class="lok-stok-item" style="display:flex;align-items:center;gap:6px;margin-top:4px;border-top:1px solid var(--border);padding-top:4px">'+
+              '<span style="color:var(--text3);min-width:36px">toplam</span>'+
+              '<span style="font-size:14px;font-weight:500;color:'+(fark===0?'var(--green)':fark>0?'var(--green)':'var(--red)')+'">'+toplam+'</span>'+
+              '<span style="font-family:var(--mono);font-size:12px;color:'+(fark===0?'var(--green)':fark>0?'var(--green)':'var(--red)')+'"> ('+(fark>0?'+':'')+fark+')</span>'+
+            '</div>'
+          :'')+
+        '</div>'+
+      '</div>'+
       '<div class="sayim-stok-bilgi"><span>'+u.stok_miktari+'</span>sistemde</div>'+
-      (s?'<div style="display:flex;flex-direction:column;align-items:center;gap:4px">'+
-        '<div class="sayim-fark '+(fark>0?'pos':fark<0?'neg':'zero')+'">'+(fark>0?'+':'')+fark+'</div>'+
-        (!tamamlandi?'<button class="duzenle-btn" data-duzenle="'+u.barkod+'">düzenle</button>':'')+
-      '</div>':
-      '<div>'+(!tamamlandi?'<button class="btn-ghost" style="font-size:11px;padding:5px 8px" data-hizli="'+u.barkod+'" data-stok="'+u.stok_miktari+'">Gir</button>':'—')+'</div>')+
     '</div>';
   }).join('');
 
@@ -916,19 +945,31 @@ function renderSayimDetay(){
 
 window.setLokasyon=function(lok){aktifLokasyon=lok;renderSayimDetay();};
 
-window.sayimDuzenle=function(barkod){
+window.sayimDuzenle=function(barkod, lok){
   const s=sayimCache[barkod];
   if(!s) return;
   const u=Object.values(stokCache).find(u=>String(u.barkod)===String(barkod));
-  const yeniSalon=prompt((u?.urun_adi||barkod)+' — Salon miktarı:',s.salon||0);
-  if(yeniSalon===null) return;
-  const yeniDepo=prompt((u?.urun_adi||barkod)+' — Depo miktarı:',s.depo||0);
-  if(yeniDepo===null) return;
-  const salon=parseInt(yeniSalon)||0;
-  const depo=parseInt(yeniDepo)||0;
-  const toplam=salon+depo;
-  const fark=toplam-(parseInt(u?.stok_miktari)||0);
-  sayimCache[barkod]={...s,salon,depo,sayilan:toplam,fark};
+  if(lok){
+    // sadece o lokasyonu düzenle
+    const mevcut=s[lok]||0;
+    const yeni=prompt((u?.urun_adi||barkod)+' — '+(lok==='salon'?'Salon':'Depo')+' miktarı:',mevcut);
+    if(yeni===null) return;
+    const val=parseInt(yeni);
+    if(isNaN(val)||val<0){toast('Geçerli miktar gir','error');return;}
+    s[lok]=val;
+  } else {
+    // ikisini birden düzenle
+    const yeniSalon=prompt((u?.urun_adi||barkod)+' — Salon miktarı:',s.salon||0);
+    if(yeniSalon===null) return;
+    const yeniDepo=prompt((u?.urun_adi||barkod)+' — Depo miktarı:',s.depo||0);
+    if(yeniDepo===null) return;
+    s.salon=parseInt(yeniSalon)||0;
+    s.depo=parseInt(yeniDepo)||0;
+  }
+  const toplam=(s.salon||0)+(s.depo||0);
+  s.sayilan=toplam;
+  s.fark=toplam-(parseInt(u?.stok_miktari)||0);
+  sayimCache[barkod]=s;
   updateDoc(doc(db,'sayimlar',aktifSayimId),{sayilanlar:sayimCache});
   renderSayimDetay();
   toast((u?.urun_adi||barkod)+' güncellendi');
