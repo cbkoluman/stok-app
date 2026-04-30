@@ -364,6 +364,16 @@ const db = getFirestore(fb);
 
 // ── STATE ──
 let stokCache = {};
+
+// sayım sayfası global event delegation
+document.addEventListener('click',e=>{
+  const fb=e.target.closest('[data-filtre]');
+  if(fb&&fb.dataset.filtre){sayimFiltreAktif=fb.dataset.filtre;if(aktifSayimId)renderSayimDetay();return;}
+  const db2=e.target.closest('[data-duzenle]');
+  if(db2&&db2.dataset.duzenle){window.sayimDuzenle&&window.sayimDuzenle(db2.dataset.duzenle);return;}
+  const hb=e.target.closest('[data-hizli]');
+  if(hb&&hb.dataset.hizli){window.sayimHizliEkle&&window.sayimHizliEkle(hb.dataset.hizli,'',hb.dataset.stok);return;}
+});
 let harCache = [];
 let aktifIslem = 'GİRİŞ';
 let aktifKat = 'Hepsi';
@@ -887,18 +897,7 @@ function renderSayimDetay(){
     '</div>'+
     '<div id="sayim-urun-liste">'+urunListHTML+'</div>';
 
-  // event delegation — filtre, düzenle, gir butonları
-  const sayimAnaEl=document.getElementById('sayim-ana');
-  if(sayimAnaEl){
-    sayimAnaEl.addEventListener('click',e=>{
-      const fb=e.target.dataset.filtre;
-      if(fb){sayimFiltreAktif=fb;renderSayimDetay();return;}
-      const db2=e.target.dataset.duzenle;
-      if(db2){window.sayimDuzenle(db2);return;}
-      const hb=e.target.dataset.hizli;
-      if(hb){window.sayimHizliEkle(hb,'',e.target.dataset.stok);return;}
-    },{once:true});
-  }
+  // event delegation burada değil, global olarak kuruluyor
 
   if(!tamamlandi){
     const bi=document.getElementById('sayim-barkod-inp');
@@ -941,10 +940,11 @@ window.sayimHizliEkle=function(barkod,ad,sistemStok){
   const el=document.getElementById('sayim-barkod-inp');
   const mi=document.getElementById('sayim-miktar-inp');
   if(el) el.value=barkod;
-  // mevcut lokasyondaki değeri doldur
   const mevcut=sayimCache[barkod];
   const lokVal=mevcut?(aktifLokasyon==='salon'?mevcut.salon||0:mevcut.depo||0):0;
   if(mi){mi.value=lokVal||'';mi.focus();mi.select();}
+  const u=Object.values(stokCache).find(u=>String(u.barkod)===String(barkod));
+  if(u) toast(u.urun_adi+' — '+aktifLokasyon+' miktarını gir');
 };
 
 window.sayimEkle=function(){
