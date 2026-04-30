@@ -469,7 +469,7 @@ window.renderUrunler = function(){
       <div class="kat-accordion-body${acik?' open':''}">
         <div class="urun-grid">${urunler.map(u=>{
           const d=dur(u.stok_miktari,u.kritik_limit),dc=durClass(d);
-          return `<div class="urun-kart" onclick="openDetayModal('${u._id}')">
+          return `<div class="urun-kart" data-id="${u._id}">
             <div class="urun-kart-header">
               <div class="urun-kart-ad">${u.urun_adi}</div>
               <span class="durum-pill durum-${dc}">${d}</span>
@@ -571,6 +571,14 @@ window.saveYeniUrun=async function(){
 // ── STOK İŞLEMLERİ ──
 const islemBarkod=document.getElementById('islem-barkod');
 islemBarkod.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();window.sorgulaIslem();}});
+
+// urun kart tıklama — event delegation
+document.addEventListener('click', e => {
+  const kart = e.target.closest('.urun-kart[data-id]');
+  if(kart) { window.openDetayModal(kart.dataset.id); return; }
+  const ozet = e.target.closest('[data-action="ozet"][data-id]');
+  if(ozet) { window.ozekUrunAc(ozet.dataset.id); return; }
+});
 
 // netum barkod okuyucu: islemler sayfasındayken odak otomatik input'ta kalsın
 document.addEventListener('keydown',e=>{
@@ -929,7 +937,7 @@ function renderOzet(){
     if(!liste.length){el2.innerHTML='<div style="color:var(--text3);font-family:var(--mono);font-size:13px">Yok</div>';return;}
     el2.innerHTML=`<div class="ozet-urun-liste">${liste.map(u=>{
       const d=dur(u.stok_miktari,u.kritik_limit);
-      return `<div class="ozet-urun-satir" onclick="ozekUrunAc('${u._id}')">
+      return `<div class="ozet-urun-satir" data-id="${u._id}" data-action="ozet">
         <div><div class="ozet-urun-ad">${u.urun_adi}</div><div class="ozet-urun-barkod">${u.barkod}</div></div>
         <div style="display:flex;align-items:center;gap:8px">
           <span class="ozet-urun-stok" style="color:${renk(d)}">${u.stok_miktari}</span>
