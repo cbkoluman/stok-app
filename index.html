@@ -676,6 +676,59 @@ function stopIslemKamera(){
   islemKameraAcik=false;
 }
 
+// ── SAYIM KAMERA ──
+let sayimKameraAcik=false, sayimVideoStream=null, sayimScanInterval=null;
+
+window.toggleSayimKamera=function(){ sayimKameraAcik?stopSayimKamera():startSayimKamera(); };
+
+async function startSayimKamera(){
+  const re=document.getElementById('sayim-reader');
+  if(!re) return;
+  re.style.display='block';
+  const btn=document.getElementById('sayim-kamera-btn');
+  if(btn) btn.textContent='Kamerayı kapat';
+  sayimKameraAcik=true;
+  const v=document.createElement('video');
+  v.setAttribute('playsinline','true'); v.setAttribute('autoplay','true');
+  v.style.cssText='width:100%;border-radius:6px;display:block';
+  re.innerHTML=''; re.appendChild(v);
+  try{
+    sayimVideoStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1280},height:{ideal:720}}});
+    v.srcObject=sayimVideoStream; await v.play();
+  }catch(e){ toast('Kamera açılamadı','error'); stopSayimKamera(); return; }
+  const formats=await BarcodeDetector.getSupportedFormats();
+  const det=new BarcodeDetector({formats});
+  const canvas=document.createElement('canvas'); const ctx=canvas.getContext('2d');
+  sayimScanInterval=setInterval(async()=>{
+    if(!v.videoWidth) return;
+    canvas.width=v.videoWidth; canvas.height=v.videoHeight; ctx.drawImage(v,0,0);
+    try{
+      const codes=await det.detect(canvas);
+      if(codes.length>0){
+        const bi=document.getElementById('sayim-barkod-inp');
+        const mi=document.getElementById('sayim-miktar-inp');
+        if(bi){ bi.value=codes[0].rawValue; }
+        stopSayimKamera();
+        // sisteme stok miktarını otomatik doldur
+        const u=Object.values(stokCache).find(u=>String(u.barkod)===String(codes[0].rawValue));
+        if(u&&mi&&!mi.value){ mi.value=u.stok_miktari; }
+        if(mi){ mi.focus(); mi.select(); }
+        toast((u?.urun_adi||codes[0].rawValue)+' tarandı');
+      }
+    }catch(e){}
+  },150);
+}
+
+function stopSayimKamera(){
+  if(sayimScanInterval){ clearInterval(sayimScanInterval); sayimScanInterval=null; }
+  if(sayimVideoStream){ sayimVideoStream.getTracks().forEach(t=>t.stop()); sayimVideoStream=null; }
+  const re=document.getElementById('sayim-reader');
+  if(re){ re.innerHTML=''; re.style.display='none'; }
+  const btn=document.getElementById('sayim-kamera-btn');
+  if(btn) btn.textContent='Kamera ile tara';
+  sayimKameraAcik=false;
+}
+
 // ── SAYIM ──
 window.renderSayimAna=async function(){
   const el=document.getElementById('sayim-ana');
@@ -782,10 +835,14 @@ function renderSayimDetay(){
       <div class="sayim-ozet-item"><span style="color:var(--red)">-${toplamEksik}</span>Eksik</div>
     </div>
 
-    ${!tamamlandi?`<div style="display:flex;gap:8px;margin-bottom:12px">
-      <input class="inp inp-mono" id="sayim-barkod-inp" placeholder="Barkod tara..." style="flex:1" autocomplete="off">
-      <input class="inp" id="sayim-miktar-inp" type="number" placeholder="Miktar" min="0" style="width:90px;text-align:center">
-      <button class="btn-accent" onclick="sayimEkle()">Ekle</button>
+    ${!tamamlandi?`<div style="margin-bottom:12px">
+      <div style="display:flex;gap:8px;margin-bottom:6px">
+        <input class="inp inp-mono" id="sayim-barkod-inp" placeholder="Barkod tara..." style="flex:1" autocomplete="off">
+        <input class="inp" id="sayim-miktar-inp" type="number" placeholder="Miktar" min="0" style="width:90px;text-align:center">
+        <button class="btn-accent" onclick="sayimEkle()">Ekle</button>
+      </div>
+      <button class="kamera-btn${/android/i.test(navigator.userAgent)&&'BarcodeDetector' in window?'':' hidden'}" id="sayim-kamera-btn" onclick="toggleSayimKamera()">Kamera ile tara</button>
+      <div id="sayim-reader" style="border-radius:6px;overflow:hidden;display:none;margin-top:6px"></div>
     </div>`:''}
 
     <div class="sayim-filter-row">
