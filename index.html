@@ -1717,6 +1717,7 @@ async function loadBirimler() {
     <div class="liste-item">
       <div class="liste-item-ad">${b}</div>
       <div class="liste-item-actions">
+        <button class="ic-btn" data-birim-duzenle="${b}">düzenle</button>
         <button class="ic-btn red" data-birim-sil="${b}">sil</button>
       </div>
     </div>`).join('') : '<div style="color:var(--text3);font-size:12px;padding:8px 10px">Henüz birim yok</div>';
@@ -1914,6 +1915,7 @@ async function loadKategoriler() {
     <div class="liste-item">
       <div class="liste-item-ad">${k._id}</div>
       <div class="liste-item-actions">
+        <button class="ic-btn" data-kat-duzenle="${k._id}">düzenle</button>
         <button class="ic-btn red" data-kat-sil="${k._id}">sil</button>
       </div>
     </div>`).join('') : '<div style="color:var(--text3);font-size:12px;padding:8px 0">Henüz kategori yok</div>';
@@ -1978,11 +1980,33 @@ document.addEventListener('click', e => {
     window.sayimiGeriAl(sayimSil);
     return;
   }
+  // birim düzenle
+  const birimDuzenle = e.target.dataset.birimDuzenle;
+  if(birimDuzenle) {
+    const yeni = prompt('Yeni birim adı:', birimDuzenle);
+    if(!yeni || yeni.trim()===birimDuzenle) return;
+    const batch = writeBatch(db);
+    batch.delete(doc(db,'birim',birimDuzenle));
+    batch.set(doc(db,'birim',yeni.trim()), {olusturuldu: new Date()});
+    batch.commit().then(()=>{ toast(birimDuzenle+' → '+yeni.trim(),'success'); loadBirimler(); });
+    return;
+  }
   // birim sil
   const birimSil = e.target.dataset.birimSil;
   if(birimSil) {
     if(!confirm('"'+birimSil+'" silinsin mi?')) return;
     deleteDoc(doc(db,'birim',birimSil)).then(()=>{ toast('Silindi'); loadBirimler(); });
+    return;
+  }
+  // kategori düzenle
+  const katDuzenle = e.target.dataset.katDuzenle;
+  if(katDuzenle) {
+    const yeni = prompt('Yeni kategori adı:', katDuzenle);
+    if(!yeni || yeni.trim()===katDuzenle) return;
+    const batch = writeBatch(db);
+    batch.delete(doc(db,'kategoriler',katDuzenle));
+    batch.set(doc(db,'kategoriler',yeni.trim()), {olusturuldu: new Date()});
+    batch.commit().then(()=>{ toast(katDuzenle+' → '+yeni.trim(),'success'); loadKategoriler(); });
     return;
   }
   // kategori sil
