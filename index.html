@@ -1592,7 +1592,7 @@ window.birimEkle = async function() {
   const inp = document.getElementById('yeni-birim-inp');
   const ad = inp?.value.trim();
   if(!ad) { toast('Birim adı gir','error'); return; }
-  await setDoc(doc(db,'birimler',ad), {olusturuldu: new Date()});
+  await setDoc(doc(db,'birim',ad), {olusturuldu: new Date()});
   inp.value = '';
   toast(ad + ' eklendi', 'success');
   loadBirimler();
@@ -1848,7 +1848,7 @@ document.addEventListener('click', e => {
   const birimSil = e.target.dataset.birimSil;
   if(birimSil) {
     if(!confirm('"'+birimSil+'" silinsin mi?')) return;
-    deleteDoc(doc(db,'birimler',birimSil)).then(()=>{ toast('Silindi'); loadBirimler(); });
+    deleteDoc(doc(db,'birim',birimSil)).then(()=>{ toast('Silindi'); loadBirimler(); });
     return;
   }
   // kategori sil
