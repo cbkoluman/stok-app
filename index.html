@@ -640,14 +640,21 @@ window.addEventListener('offline', () => {
 });
 
 async function girisKontrol() {
-  // session'da kayıtlı kullanıcı var mı?
   const kayitli = localStorage.getItem('stok_kullanici');
   if(kayitli) {
     try {
       aktifKullanici = JSON.parse(kayitli);
       girisOnayla();
       return;
-    } catch(e) { localStorage.removeItem('stok_kullanici'); }
+    } catch(e) {
+      console.error('Giriş hatası:', e);
+      // localStorage'ı temizleme — sadece parse hatası varsa temizle
+      if(e instanceof SyntaxError) localStorage.removeItem('stok_kullanici');
+      else {
+        // parse başarılı ama girisOnayla patladı — yine de göster
+        try { girisOnayla(); return; } catch(e2) { console.error('girisOnayla hatası:', e2); }
+      }
+    }
   }
   document.getElementById('giris-overlay').style.display = 'flex';
 }
