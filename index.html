@@ -1616,7 +1616,10 @@ async function loadSayimGecmis() {
           <div style="font-weight:500;margin-bottom:2px">${s.ad}</div>
           <div style="font-size:12px;color:var(--text2)">${fmtZaman(s.baslangic)}${s.bitis?' → '+fmtZaman(s.bitis):' (devam ediyor)'}</div>
         </div>
-        <span class="durum-pill ${s.durum==='tamamlandi'?'durum-normal':'durum-kritik'}">${s.durum==='tamamlandi'?'Tamamlandı':'Devam'}</span>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span class="durum-pill ${s.durum==='tamamlandi'?'durum-normal':'durum-kritik'}">${s.durum==='tamamlandi'?'Tamamlandı':'Devam'}</span>
+          <button class="ic-btn red" data-sayim-sil="${s._id}" title="Sayımı sil">sil</button>
+        </div>
       </div>
       <div class="rapor-stat">
         <div class="rapor-stat-item"><div class="rapor-stat-val">${sayilanlar.length}</div><div class="rapor-stat-label">Sayılan ürün</div></div>
@@ -1785,6 +1788,18 @@ window.perEkle = async function() {
 
 // panel event delegation
 document.addEventListener('click', e => {
+  // sayım sil
+  const sayimSil = e.target.dataset.sayimSil;
+  if(sayimSil) {
+    if(!confirm('Bu sayım silinsin mi? Bu işlem geri alınamaz.')) return;
+    deleteDoc(doc(db,'sayimlar',sayimSil)).then(()=>{
+      toast('Sayım silindi');
+      loadSayimGecmis();
+      // sayım listesini de güncelle
+      sayimOturumlar=sayimOturumlar.filter(s=>s._id!==sayimSil);
+    });
+    return;
+  }
   // birim sil
   const birimSil = e.target.dataset.birimSil;
   if(birimSil) {
