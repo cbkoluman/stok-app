@@ -238,6 +238,11 @@ main{flex:1;padding:20px;max-width:1100px;margin:0 auto;width:100%}
 .gorsel-yukle-btn:hover{border-color:var(--accent);color:var(--accent)}
 .detay-gorsel{width:100%;max-height:200px;object-fit:contain;border-radius:var(--radius);margin-bottom:12px;background:var(--surface2)}
 
+/* ===== FAB TARA ===== */
+.fab-tara{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:var(--accent);color:#000;border:none;border-radius:30px;padding:14px 32px;font-family:var(--mono);font-size:14px;font-weight:500;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,.4);z-index:90;display:none;align-items:center;gap:10px;transition:transform .15s,box-shadow .15s;white-space:nowrap}
+.fab-tara:active{transform:translateX(-50%) scale(0.96)}
+.fab-tara.visible{display:flex}
+
 /* ===== SAYIM GÖRSEL ===== */
 .sayim-thumbnail{width:40px;height:40px;object-fit:cover;border-radius:4px;cursor:pointer;flex-shrink:0;transition:opacity .15s}
 .sayim-thumbnail:hover{opacity:.8}
@@ -563,6 +568,11 @@ main{flex:1;padding:20px;max-width:1100px;margin:0 auto;width:100%}
   </div>
 </div>
 
+<!-- FAB TARA -->
+<button class="fab-tara" id="fab-tara" onclick="fabTara()">
+  <span style="font-size:18px">⊙</span> Tara
+</button>
+
 <!-- LIGHTBOX -->
 <div class="lightbox" id="lightbox" onclick="if(event.target===this)closeLightbox()">
   <div class="lightbox-inner">
@@ -844,6 +854,9 @@ window.goPage = function(name, btn){
   if(name==='sayim') renderSayimAna();
   if(name==='islemler') setTimeout(()=>document.getElementById('islem-barkod')?.focus(),100);
   if(name==='panel') renderPanel();
+  // FAB sadece sayım sayfasında ve mobilde görünsün
+  const fab=document.getElementById('fab-tara');
+  if(fab) fab.classList.toggle('visible', name==='sayim' && window.innerWidth<=768);
 };
 
 // ── ÜRÜNLER ──
@@ -1291,6 +1304,9 @@ function stopSayimKamera(){
 
 // ── SAYIM ──
 window.renderSayimAna=async function(){
+  // sayım ana ekranında FAB gizle
+  const fab=document.getElementById('fab-tara');
+  if(fab) fab.classList.remove('visible');
   const el=document.getElementById('sayim-ana');
   el.innerHTML='<div class="loading">Yükleniyor</div>';
   const snap=await getDocs(query(collection(db,'sayimlar'),orderBy('baslangic','desc'),limit(20)));
@@ -1367,6 +1383,12 @@ let aktifLokasyon='salon';
 let sayimMod='barkod';
 
 function renderSayimDetay(){
+  // FAB'ı göster (mobil + sayım detayı + tamamlanmamış)
+  const fab=document.getElementById('fab-tara');
+  if(fab){
+    const oturum2=sayimOturumlar.find(s=>s._id===aktifSayimId);
+    fab.classList.toggle('visible', window.innerWidth<=768 && oturum2?.durum!=='tamamlandi');
+  }
   const oturum=sayimOturumlar.find(s=>s._id===aktifSayimId)||{sayilanlar:{}};
   const tamamlandi=oturum.durum==='tamamlandi';
   const urunler=Object.values(stokCache);
@@ -2032,6 +2054,22 @@ document.addEventListener('click', e => {
     return;
   }
 });
+
+// ── FAB TARA ──
+window.fabTara = function() {
+  if(!aktifSayimId) return;
+  const isAndroidBC = /android/i.test(navigator.userAgent) && 'BarcodeDetector' in window;
+  if(isAndroidBC) {
+    // Android: kamera aç
+    if(sayimMod!=='barkod') { sayimMod='barkod'; renderSayimDetay(); }
+    toggleSayimKamera();
+  } else {
+    // iOS/diğer: barkod moduna geç, input'a odaklan
+    if(sayimMod!=='barkod') { sayimMod='barkod'; renderSayimDetay(); }
+    const bi=document.getElementById('sayim-barkod-inp');
+    if(bi){ bi.focus(); bi.scrollIntoView({behavior:'smooth',block:'center'}); }
+  }
+};
 
 // ── LIGHTBOX ──
 window.openLightbox = function(id) {
