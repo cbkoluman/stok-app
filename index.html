@@ -764,6 +764,8 @@ document.addEventListener('click',e=>{
     if(u){
       document.getElementById('sayim-isim-inp').value=u.urun_adi;
       document.getElementById('sayim-isim-sonuc').classList.remove('acik');
+      // liste filtresini temizle
+      document.getElementById('sayim-urun-liste')?.querySelectorAll('.sayim-urun-satir').forEach(r=>r.style.display='');
       // miktarı lokasyona göre doldur
       const mevcut=sayimCache[barkod];
       const lokVal=mevcut?(aktifLokasyon==='salon'?mevcut.salon:mevcut.depo):null;
@@ -1498,11 +1500,21 @@ function renderSayimDetay(){
       const bi=document.getElementById('sayim-barkod-inp');
       if(bi){
         bi.focus();
+        bi.addEventListener('input',()=>{
+          const q=bi.value.trim().toLowerCase();
+          document.getElementById('sayim-urun-liste')?.querySelectorAll('.sayim-urun-satir').forEach(row=>{
+            const ad=(row.querySelector('.sayim-urun-ad')?.textContent||'').toLowerCase();
+            const barkod=(row.querySelector('.sayim-urun-barkod')?.textContent||'').toLowerCase();
+            row.style.display=(!q||ad.includes(q)||barkod.includes(q))?'':'none';
+          });
+        });
         bi.addEventListener('keydown',e=>{
           if(e.key==='Enter'){e.preventDefault();
             const barkod=bi.value.trim();
             const mi=document.getElementById('sayim-miktar-inp');
             if(barkod) sayimEkleManuel(barkod,mi?.value,aktifLokasyon);
+            // ekleme sonrası filtreyi temizle
+            document.getElementById('sayim-urun-liste')?.querySelectorAll('.sayim-urun-satir').forEach(r=>r.style.display='');
           }
         });
       }
@@ -1533,8 +1545,25 @@ window.sayimIsimAra=function(){
   const q=(document.getElementById('sayim-isim-inp')?.value||'').toLowerCase();
   const sonucEl=document.getElementById('sayim-isim-sonuc');
   if(!sonucEl) return;
+
+  // listeyi filtrele
+  const liste=document.getElementById('sayim-urun-liste');
+  if(liste){
+    liste.querySelectorAll('.sayim-urun-satir').forEach(row=>{
+      const ad=(row.querySelector('.sayim-urun-ad')?.textContent||'').toLowerCase();
+      const barkod=(row.querySelector('.sayim-urun-barkod')?.textContent||'').toLowerCase();
+      row.style.display=(!q||ad.includes(q)||barkod.includes(q))?'':'none';
+    });
+  }
+
   if(!q){sonucEl.classList.remove('acik');sonucEl.innerHTML='';return;}
-  const sonuclar=tumUrunlerCache.filter(u=>(u.urun_adi||'').toLowerCase().includes(q)).slice(0,8);
+
+  // rol filtreli cache kullan
+  let aramaHavuzu=window.tumUrunlerCache||[];
+  if(aktifKullanici?.rol==='salon') aramaHavuzu=aramaHavuzu.filter(u=>u.ilgi==='Salon');
+  else if(aktifKullanici?.rol==='mutfak') aramaHavuzu=aramaHavuzu.filter(u=>u.ilgi==='Mutfak');
+
+  const sonuclar=aramaHavuzu.filter(u=>(u.urun_adi||'').toLowerCase().includes(q)||(String(u.barkod)||'').includes(q)).slice(0,8);
   if(!sonuclar.length){sonucEl.classList.add('acik');sonucEl.innerHTML='<div style="padding:10px 12px;color:var(--text3);font-size:12px">Bulunamadı</div>';return;}
   sonucEl.classList.add('acik');
   sonucEl.innerHTML=sonuclar.map(u=>`
@@ -1601,6 +1630,10 @@ function sayimEkleManuel(barkod, miktarStr, lokasyon='salon'){
   const mi=document.getElementById('sayim-miktar-inp');
   if(bi){bi.value='';bi.focus();}
   if(mi) mi.value='';
+  // isim modundaki inputu ve filtreyi temizle
+  const ii=document.getElementById('sayim-isim-inp');
+  if(ii){ii.value='';ii.dataset.barkod='';}
+  document.getElementById('sayim-isim-sonuc')?.classList.remove('acik');
   renderSayimDetay();
   toast(u.urun_adi+' '+lokasyon+': '+miktar+' (toplam: '+toplam+')');
 }
@@ -1608,9 +1641,12 @@ function sayimEkleManuel(barkod, miktarStr, lokasyon='salon'){
 window.sayimiTamamla=async function(){
   if(!aktifSayimId) return;
   const sapmalar=Object.values(sayimCache).filter(x=>x.fark!==0);
+  const sayilanSayisi=Object.keys(sayimCache).length;
+  const tumUrunSayisi=Object.values(stokCache).length;
+  const sayilmayanSayisi=tumUrunSayisi-sayilanSayisi;
   const msg=sapmalar.length
-    ?`${Object.keys(sayimCache).length} ürün sayıldı, ${sapmalar.length} üründe sapma var. Stoklar güncellensin mi?`
-    :`${Object.keys(sayimCache).length} ürün sayıldı, sapma yok. Tamamlansın mı?`;
+    ?`${sayilanSayisi} ürün sayıldı, ${sapmalar.length} üründe sapma var.\n\nSadece sayılan ürünlerin stokları güncellenecek.${sayilmayanSayisi>0?' \n'+sayilmayanSayisi+' sayılmayan ürün değiştirilmeyecek.':''}\n\nDevam edilsin mi?`
+    :`${sayilanSayisi} ürün sayıldı, sapma yok.${sayilmayanSayisi>0?' \n'+sayilmayanSayisi+' sayılmayan ürün değiştirilmeyecek.':''}\n\nTamamlansın mı?`;
   if(!confirm(msg)) return;
 
   const batch=writeBatch(db);
