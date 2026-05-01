@@ -721,11 +721,17 @@ function girisOnayla() {
     nav.innerHTML = '<button class="nav-btn active" onclick="goPage(&quot;sayim&quot;,this)">Sayım</button>';
     goPage('sayim', nav.querySelector('.nav-btn'));
   }
-  // yönetici için panel butonu göster
+  // yönetici için panel ve loglar butonu göster
   const panelBtn=document.getElementById('panel-nav-btn');
   if(panelBtn) panelBtn.style.display=rol==='yonetici'?'':'none';
   const loglarBtn=document.getElementById('loglar-nav-btn');
   if(loglarBtn) loglarBtn.style.display=rol==='yonetici'?'':'none';
+  // yönetici için ilk sayfayı render et
+  if(rol==='yonetici') {
+    const firstBtn=document.querySelector('#main-nav .nav-btn');
+    if(firstBtn) firstBtn.classList.add('active');
+    renderUrunler();
+  }
   // bildirim izni iste
   if('Notification' in window && Notification.permission === 'default') {
     Notification.requestPermission();
@@ -858,12 +864,19 @@ function fmtTarih(ts){
 girisKontrol();
 
 // ── REALTIME STOK ──
+let ilkYukleme = true;
 onSnapshot(collection(db,'stok'), snap=>{
   stokCache={};
   snap.forEach(d=>stokCache[d.id]={...d.data(),_id:d.id});
   renderUrunler();
   renderOzet();
   if(aktifSayimId) renderSayimDetay();
+  // ilk yüklemede aktif sayfa sayım ise onu da render et
+  if(ilkYukleme) {
+    ilkYukleme=false;
+    const aktifSayfa=document.querySelector('.page.active')?.id;
+    if(aktifSayfa==='page-sayim') renderSayimAna();
+  }
 });
 
 // ── REALTIME HAREKETLER ──
