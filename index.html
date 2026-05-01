@@ -586,6 +586,13 @@ main{flex:1;padding:20px;max-width:1100px;margin:0 auto;width:100%}
     </div>
     <div class="modal-body">
       <div class="form-group"><label class="form-label">Sayım adı *</label><input class="inp" id="sayim-ad" placeholder="Ocak 2025 Sayımı"></div>
+      <div class="form-group"><label class="form-label">Bölge *</label>
+        <select class="inp" id="sayim-ilgi">
+          <option value="Salon">Salon</option>
+          <option value="Mutfak">Mutfak</option>
+          <option value="Hepsi">Hepsi (Yönetici)</option>
+        </select>
+      </div>
       <div class="form-group"><label class="form-label">Notlar</label><input class="inp" id="sayim-not" placeholder="Opsiyonel"></div>
     </div>
     <div class="modal-footer">
@@ -1369,8 +1376,13 @@ window.renderSayimAna=async function(){
   sayimOturumlar=[];
   snap.forEach(d=>sayimOturumlar.push({...d.data(),_id:d.id}));
 
-  const aktifler=sayimOturumlar.filter(s=>s.durum==='devam');
-  const tamamlananlar=sayimOturumlar.filter(s=>s.durum==='tamamlandi');
+  // rol bazlı filtre — yönetici hepsini görür, salon/mutfak sadece kendi bölgesini
+  const rolIlgi = aktifKullanici?.rol==='salon'?'Salon':aktifKullanici?.rol==='mutfak'?'Mutfak':null;
+  const filtreliSayimlar = rolIlgi
+    ? sayimOturumlar.filter(s=>s.ilgi===rolIlgi)
+    : sayimOturumlar;
+  const aktifler=filtreliSayimlar.filter(s=>s.durum==='devam');
+  const tamamlananlar=filtreliSayimlar.filter(s=>s.durum==='tamamlandi');
 
   el.innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
@@ -1380,7 +1392,10 @@ window.renderSayimAna=async function(){
     ${aktifler.length?`<div class="card-title">Devam Eden</div>
     ${aktifler.map(s=>`<div class="sayim-oturum-kart aktif-oturum" onclick="acSayim('${s._id}')">
       <div class="sayim-oturum-header">
-        <span style="font-weight:500">${s.ad}</span>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="font-weight:500">${s.ad}</span>
+          ${s.ilgi&&s.ilgi!=='Hepsi'?`<span class="rol-pill ${s.ilgi==='Salon'?'rol-salon':'rol-mutfak'}" style="font-size:10px">${s.ilgi}</span>`:''}
+        </div>
         <span class="durum-pill" style="background:#1a2a4a;color:#4a8aff">DEVAM EDİYOR</span>
       </div>
       <div class="sayim-oturum-meta">${fmtZaman(s.baslangic)} · ${Object.keys(s.sayilanlar||{}).length} ürün sayıldı</div>
@@ -1392,7 +1407,10 @@ window.renderSayimAna=async function(){
       return `<div class="gecmis-kart">
         <div class="gecmis-kart-header" onclick="toggleGecmisKart('${s._id}')">
           <div style="flex:1;min-width:0">
-            <div style="font-weight:500;margin-bottom:2px">${s.ad}</div>
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+              <span style="font-weight:500">${s.ad}</span>
+              ${s.ilgi&&s.ilgi!=='Hepsi'?`<span class="rol-pill ${s.ilgi==='Salon'?'rol-salon':'rol-mutfak'}" style="font-size:10px">${s.ilgi}</span>`:''}
+            </div>
             <div style="font-size:12px;color:var(--text2)">${fmtTarih(s.baslangic)}${s.bitis?' · '+fmtZaman(s.bitis).split(' ')[1]:''}</div>
           </div>
           <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
@@ -1433,9 +1451,10 @@ window.closeSayimModal=function(){document.getElementById('sayim-modal').classLi
 window.yeniSayimOlustur=async function(){
   const ad=document.getElementById('sayim-ad').value.trim();
   if(!ad){toast('Sayım adı gir','error');return;}
+  const ilgi=document.getElementById('sayim-ilgi')?.value||'Hepsi';
   const ref=await addDoc(collection(db,'sayimlar'),{
     ad, not:document.getElementById('sayim-not').value.trim(),
-    baslangic:new Date(), durum:'devam', sayilanlar:{}
+    ilgi, baslangic:new Date(), durum:'devam', sayilanlar:{}
   });
   closeSayimModal();
   document.getElementById('sayim-ad').value='';
@@ -1448,6 +1467,11 @@ window.acSayim=function(id){
   sayimCache=sayimOturumlar.find(s=>s._id===id)?.sayilanlar||{};
   renderSayimDetay();
 };
+
+function getSayimIlgi(){
+  const oturum=sayimOturumlar.find(s=>s._id===aktifSayimId);
+  return oturum?.ilgi||'Hepsi';
+}
 
 let sayimFiltreAktif='hepsi';
 let sayimDetayBarkodInput=null;
@@ -1466,11 +1490,12 @@ function renderSayimDetay(){
   const tamamlandi=oturum.durum==='tamamlandi';
   const urunler=Object.values(stokCache);
   const sayilanlar=sayimCache;
-  // rol bazlı filtre
+  // sayımın ilgisine göre ürün filtresi
   let tumUrunler=[...urunler];
+  const sayimIlgi=getSayimIlgi();
+  if(sayimIlgi==='Salon') tumUrunler=urunler.filter(u=>u.ilgi==='Salon');
+  else if(sayimIlgi==='Mutfak') tumUrunler=urunler.filter(u=>u.ilgi==='Mutfak');
   window.tumUrunlerCache=tumUrunler; // isim arama için
-  if(aktifKullanici?.rol==='salon') tumUrunler=urunler.filter(u=>u.ilgi==='Salon');
-  else if(aktifKullanici?.rol==='mutfak') tumUrunler=urunler.filter(u=>u.ilgi==='Mutfak');
   const toplamUrun=tumUrunler.length;
   const sayilanSayisi=Object.keys(sayilanlar).length;
   const sapmalar=Object.values(sayilanlar).filter(x=>((x.salon||0)+(x.depo||0))!==x.sistemStok);
