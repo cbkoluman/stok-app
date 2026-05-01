@@ -979,7 +979,6 @@ window.openUrunModal=async function(){
 };
 window.closeUrunModal=function(){document.getElementById('urun-modal').classList.remove('show');['nu-barkod','nu-ad','nu-kat','nu-birim','nu-stok','nu-limit'].forEach(id=>document.getElementById(id).value='');};
 window.saveYeniUrun=async function(){
-window.saveYeniUrun=async function(){
   let barkod=document.getElementById('nu-barkod').value.trim();
   const urun_adi=document.getElementById('nu-ad').value.trim();
   const ilgi=document.getElementById('nu-kat').value;
