@@ -496,7 +496,7 @@ main{flex:1;padding:20px;max-width:1100px;margin:0 auto;width:100%}
       <button class="modal-close" onclick="closeUrunModal()">×</button>
     </div>
     <div class="modal-body">
-      <div class="form-group"><label class="form-label">Barkod *</label><input class="inp" id="nu-barkod" placeholder="8690123456789"></div>
+      <div class="form-group"><label class="form-label">Barkod <span style="color:var(--text3);font-size:11px">(opsiyonel)</span></label><input class="inp" id="nu-barkod" placeholder="Boş bırakılırsa otomatik oluşturulur"></div>
       <div class="form-group"><label class="form-label">Ürün adı *</label><input class="inp" id="nu-ad" placeholder="Ürün adı"></div>
       <div class="form-row">
         <div class="form-group"><label class="form-label">İlgi</label><select class="inp" id="nu-kat"><option value="">Seç...</option><option value="Salon">Salon</option><option value="Mutfak">Mutfak</option></select></div>
@@ -979,11 +979,13 @@ window.openUrunModal=async function(){
 };
 window.closeUrunModal=function(){document.getElementById('urun-modal').classList.remove('show');['nu-barkod','nu-ad','nu-kat','nu-birim','nu-stok','nu-limit'].forEach(id=>document.getElementById(id).value='');};
 window.saveYeniUrun=async function(){
-  const barkod=document.getElementById('nu-barkod').value.trim();
+window.saveYeniUrun=async function(){
+  let barkod=document.getElementById('nu-barkod').value.trim();
   const urun_adi=document.getElementById('nu-ad').value.trim();
   const ilgi=document.getElementById('nu-kat').value;
-  if(!barkod||!urun_adi){toast('Barkod ve ürün adı zorunlu','error');return;}
+  if(!urun_adi){toast('Ürün adı zorunlu','error');return;}
   if(!ilgi){toast('İlgi seçiniz (Salon / Mutfak)','error');return;}
+  if(!barkod) barkod='URN-'+Date.now()+'-'+Math.random().toString(36).slice(2,6).toUpperCase();
   await setDoc(doc(db,'stok',barkod),{
     barkod, urun_adi,
     ilgi:ilgi,
@@ -1172,7 +1174,7 @@ window.renderSayimAna=async function(){
   el.innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
       <div style="font-family:var(--mono);font-size:12px;color:var(--text2)">${aktifler.length} aktif · ${tamamlananlar.length} tamamlandı</div>
-      <button class="btn-accent" onclick="openSayimModal()">+ Yeni Sayım</button>
+      ${aktifKullanici?.rol==='yonetici'?'<button class="btn-accent" onclick="openSayimModal()">+ Yeni Sayım</button>':''}
     </div>
     ${aktifler.length?`<div class="card-title">Devam Eden</div>
     ${aktifler.map(s=>`<div class="sayim-oturum-kart aktif-oturum" onclick="acSayim('${s._id}')">
