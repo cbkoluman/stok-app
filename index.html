@@ -1640,6 +1640,48 @@ async function loadSayimGecmis() {
   }).join('');
 }
 
+window.sayimiGeriAl = async function(sayimId) {
+  try {
+    // sayımı bul
+    const sayimDoc = await getDoc(doc(db,'sayimlar',sayimId));
+    if(!sayimDoc.exists()) { toast('Sayım bulunamadı','error'); return; }
+    const sayim = sayimDoc.data();
+    const sayilanlar = Object.values(sayim.sayilanlar||{});
+
+    const batch = writeBatch(db);
+
+    // 1. stokları eski haline döndür (sadece sapma olanlar)
+    for(const s of sayilanlar) {
+      if(s.fark === 0) continue;
+      const u = Object.values(stokCache).find(u=>String(u.barkod)===String(s.barkod));
+      if(u) {
+        batch.update(doc(db,'stok',u._id), {
+          stok_miktari: s.sistemStok,
+          son_hareket: new Date()
+        });
+      }
+    }
+
+    // 2. bu sayıma ait hareket kayıtlarını sil
+    const harSnap = await getDocs(query(
+      collection(db,'hareketler'),
+      where('sayim_id','==',sayimId)
+    ));
+    harSnap.forEach(d => batch.delete(d.ref));
+
+    // 3. sayımı sil
+    batch.delete(doc(db,'sayimlar',sayimId));
+
+    await batch.commit();
+    
+    sayimOturumlar = sayimOturumlar.filter(s=>s._id!==sayimId);
+    toast('Sayım geri alındı ve silindi','success');
+    loadSayimGecmis();
+  } catch(e) {
+    toast('Hata: '+e.message,'error');
+  }
+};
+
 window.raporGetir = async function() {
   const bas = document.getElementById('rapor-bas').value;
   const bit = document.getElementById('rapor-bit').value;
@@ -1788,16 +1830,17 @@ window.perEkle = async function() {
 
 // panel event delegation
 document.addEventListener('click', e => {
-  // sayım sil
+  // sayım geri al ve sil
   const sayimSil = e.target.dataset.sayimSil;
   if(sayimSil) {
-    if(!confirm('Bu sayım silinsin mi? Bu işlem geri alınamaz.')) return;
-    deleteDoc(doc(db,'sayimlar',sayimSil)).then(()=>{
-      toast('Sayım silindi');
-      loadSayimGecmis();
-      // sayım listesini de güncelle
-      sayimOturumlar=sayimOturumlar.filter(s=>s._id!==sayimSil);
-    });
+    const oturum = sayimOturumlar.find(s=>s._id===sayimSil);
+    const ad = oturum?.ad || 'Bu sayım';
+    const sapmaSayisi = Object.values(oturum?.sayilanlar||{}).filter(x=>x.fark!==0).length;
+    const uyari = sapmaSayisi > 0
+      ? `"${ad}" geri alınacak!\n\n${sapmaSayisi} üründe stok değişikliği tersine çevrilecek ve ilgili hareket kayıtları silinecek.\n\nBU İŞLEM GERİ ALINAMAZ. Devam edilsin mi?`
+      : `"${ad}" silinecek. Devam edilsin mi?`;
+    if(!confirm(uyari)) return;
+    window.sayimiGeriAl(sayimSil);
     return;
   }
   // birim sil
