@@ -945,7 +945,7 @@ window.openDetayModal=async function(id){
   const u=stokCache[id];
   if(!u) return;
   const d=dur(u.stok_miktari,u.kritik_limit),dc=durClass(d);
-  document.getElementById('detay-modal-title').textContent=u.urun_adi;
+  document.getElementById('detay-modal-title').innerHTML=`<input id="detay-urun-adi" value="${u.urun_adi}" style="background:none;border:none;border-bottom:1px solid var(--border2);color:var(--text);font-size:15px;font-weight:500;width:100%;outline:none;padding:2px 0" placeholder="Ürün adı">`;
 
   // son 5 hareket
   const harQ2=query(collection(db,'hareketler'),where('barkod','==',String(u.barkod)),orderBy('timestamp','desc'),limit(5));
@@ -956,7 +956,7 @@ window.openDetayModal=async function(id){
   document.getElementById('detay-modal-body').innerHTML=`
     ${u.gorsel?`<img class="detay-gorsel" src="${u.gorsel}" onerror="this.style.display='none'">`:'' }
     <div style="margin-bottom:16px">
-      <div class="detail-row"><span class="detail-label">Barkod</span><span class="detail-val">${u.barkod}</span></div>
+      <div class="detail-row"><span class="detail-label">Barkod</span><input class="inp inp-mono" id="detay-barkod" value="${u.barkod}" style="font-size:13px;padding:4px 8px;max-width:200px"></div>
       <div class="detail-row"><span class="detail-label">Stok</span><span class="detail-val" style="color:${renk(d)};font-size:18px">${u.stok_miktari} ${u.birim||'adet'}</span></div>
       <div class="detail-row"><span class="detail-label">Kritik limit</span><span class="detail-val">${u.kritik_limit}</span></div>
       <div class="detail-row"><span class="detail-label">İlgi</span><span class="detail-val">${u.ilgi||'-'}</span></div>
@@ -1007,8 +1007,24 @@ window.kaydetDetay=async function(){
   const detayIlgi=document.getElementById('detay-kat').value;
   const detayKat=document.getElementById('detay-kategori')?.value||'';
   const detayBirim=document.getElementById('detay-birim')?.value||'';
-  await updateDoc(doc(db,'stok',detayAktifId),{kritik_limit:limit2,ilgi:detayIlgi,kategori:detayKat,birim:detayBirim});
-  toast('Güncellendi','success');
+  const detayUrunAdi=document.getElementById('detay-urun-adi')?.value.trim()||'';
+  const yeniBarkod=document.getElementById('detay-barkod')?.value.trim()||'';
+  const eskiBarkod=stokCache[detayAktifId]?.barkod;
+
+  const guncelleme={kritik_limit:limit2,ilgi:detayIlgi,kategori:detayKat,birim:detayBirim};
+  if(detayUrunAdi) guncelleme.urun_adi=detayUrunAdi;
+
+  // barkod değiştiyse: yeni doc oluştur, eskiyi sil
+  if(yeniBarkod && yeniBarkod!==eskiBarkod) {
+    const eskiData={...stokCache[detayAktifId],...guncelleme,barkod:yeniBarkod};
+    delete eskiData._id;
+    await setDoc(doc(db,'stok',yeniBarkod), eskiData);
+    await deleteDoc(doc(db,'stok',detayAktifId));
+    toast('Barkod ve bilgiler güncellendi','success');
+  } else {
+    await updateDoc(doc(db,'stok',detayAktifId),guncelleme);
+    toast('Güncellendi','success');
+  }
   closeDetayModal();
 };
 window.silUrun=async function(){
