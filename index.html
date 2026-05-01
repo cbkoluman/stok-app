@@ -327,6 +327,7 @@ main{flex:1;padding:20px;max-width:1100px;margin:0 auto;width:100%}
     <button class="nav-btn" onclick="goPage('sayim',this)">Sayım</button>
     <button class="nav-btn" onclick="goPage('hareketler',this)">Hareketler</button>
     <button class="nav-btn" onclick="goPage('ozet',this)">Özet</button>
+    <button class="nav-btn" id="loglar-nav-btn" onclick="goPage('loglar',this)" style="display:none">Loglar</button>
     <button class="nav-btn" id="panel-nav-btn" onclick="goPage('panel',this)" style="display:none">Panel</button>
   </nav>
   <div style="display:flex;align-items:center;gap:8px">
@@ -414,6 +415,27 @@ main{flex:1;padding:20px;max-width:1100px;margin:0 auto;width:100%}
     <div class="ozet-seksiyon-title">Tükenen Ürünler</div>
     <div id="ozet-tukendi"><div class="loading">Yükleniyor</div></div>
   </div>
+</div>
+
+<!-- LOGLAR -->
+<div id="page-loglar" class="page">
+  <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
+    <div style="display:flex;gap:4px">
+      <button class="ilgi-pill active" id="log-filter-hepsi" onclick="setLogFilter('hepsi')">Hepsi</button>
+      <button class="ilgi-pill" id="log-filter-salon" onclick="setLogFilter('salon')">Salon</button>
+      <button class="ilgi-pill" id="log-filter-mutfak" onclick="setLogFilter('mutfak')">Mutfak</button>
+    </div>
+    <div style="display:flex;gap:4px;margin-left:auto">
+      <select class="inp" id="log-tip-filter" onchange="renderLoglar()" style="width:auto;font-size:12px;padding:5px 10px">
+        <option value="">Tüm işlemler</option>
+        <option value="GİRİŞ">Giriş</option>
+        <option value="ÇIKIŞ">Çıkış</option>
+        <option value="SAYIM">Sayım</option>
+      </select>
+      <input type="date" id="log-tarih" onchange="renderLoglar()" style="background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:5px 10px;border-radius:var(--radius);outline:none;font-size:12px">
+    </div>
+  </div>
+  <div id="loglar-content"><div class="loading">Yükleniyor</div></div>
 </div>
 
 <!-- YÖNETİCİ PANELİ -->
@@ -702,6 +724,8 @@ function girisOnayla() {
   // yönetici için panel butonu göster
   const panelBtn=document.getElementById('panel-nav-btn');
   if(panelBtn) panelBtn.style.display=rol==='yonetici'?'':'none';
+  const loglarBtn=document.getElementById('loglar-nav-btn');
+  if(loglarBtn) loglarBtn.style.display=rol==='yonetici'?'':'none';
   // bildirim izni iste
   if('Notification' in window && Notification.permission === 'default') {
     Notification.requestPermission();
@@ -741,12 +765,15 @@ window.cikisYap = function() {
   // nav'ı resetle
   const panelBtn2=document.getElementById('panel-nav-btn');
   if(panelBtn2) panelBtn2.style.display='none';
+  const loglarBtn2=document.getElementById('loglar-nav-btn');
+  if(loglarBtn2) loglarBtn2.style.display='none';
   document.getElementById('main-nav').innerHTML = `
     <button class="nav-btn active" onclick="goPage('urunler',this)">Ürünler</button>
     <button class="nav-btn" onclick="goPage('islemler',this)">İşlemler</button>
     <button class="nav-btn" onclick="goPage('sayim',this)">Sayım</button>
     <button class="nav-btn" onclick="goPage('hareketler',this)">Hareketler</button>
     <button class="nav-btn" onclick="goPage('ozet',this)">Özet</button>
+    <button class="nav-btn" id="loglar-nav-btn" onclick="goPage('loglar',this)" style="display:none">Loglar</button>
     <button class="nav-btn" id="panel-nav-btn" onclick="goPage('panel',this)" style="display:none">Panel</button>`;
   document.getElementById('giris-overlay').style.display = 'flex';
 };
@@ -856,6 +883,7 @@ window.goPage = function(name, btn){
   if(name==='sayim') renderSayimAna();
   if(name==='islemler') setTimeout(()=>document.getElementById('islem-barkod')?.focus(),100);
   if(name==='panel') renderPanel();
+  if(name==='loglar') renderLoglar();
   // FAB sadece sayım sayfasında ve mobilde görünsün
   const fab=document.getElementById('fab-tara');
   if(fab) fab.classList.toggle('visible', name==='sayim' && window.innerWidth<=768);
@@ -1204,7 +1232,8 @@ window.submitIslem=async function(){
     await updateDoc(doc(db,'stok',u._id),{stok_miktari:yeni,son_hareket:new Date()});
     await addDoc(collection(db,'hareketler'),{
       timestamp:new Date(),barkod:u.barkod,urun_adi:u.urun_adi,
-      islem_tipi:aktifIslem,miktar,onceki_stok:onceki,yeni_stok:yeni
+      islem_tipi:aktifIslem,miktar,onceki_stok:onceki,yeni_stok:yeni,
+      kullanici:aktifKullanici?.ad||'',kullanici_rol:aktifKullanici?.rol||''
     });
     toast(`${u.urun_adi} → ${yeni} ${aktifIslem==='GİRİŞ'?'↑':'↓'}`,'success');
     islemBarkod.value='';
@@ -1660,7 +1689,8 @@ window.sayimiTamamla=async function(){
           timestamp:new Date(),barkod:s.barkod,urun_adi:s.urun_adi,
           islem_tipi:'SAYIM',miktar:Math.abs(s.fark),
           onceki_stok:s.sistemStok,yeni_stok:s.sayilan,
-          sayim_id:aktifSayimId
+          sayim_id:aktifSayimId,
+          kullanici:aktifKullanici?.ad||'',kullanici_rol:aktifKullanici?.rol||''
         });
       }
     }
@@ -1875,6 +1905,82 @@ window.sayimiGeriAl = async function(sayimId) {
     toast('Hata: '+e.message,'error');
   }
 };
+
+// ── LOGLAR ──
+let aktifLogFilter = 'hepsi';
+let loglarCache = [];
+
+window.setLogFilter = function(f) {
+  aktifLogFilter = f;
+  ['hepsi','salon','mutfak'].forEach(x => {
+    const btn = document.getElementById('log-filter-'+x);
+    if(btn) btn.classList.toggle('active', x===f);
+  });
+  renderLoglar();
+};
+
+async function renderLoglar() {
+  const el = document.getElementById('loglar-content');
+  if(!el) return;
+  el.innerHTML = '<div class="loading">Yükleniyor</div>';
+
+  const tip = document.getElementById('log-tip-filter')?.value||'';
+  const tarih = document.getElementById('log-tarih')?.value||'';
+
+  const q2 = query(collection(db,'hareketler'), orderBy('timestamp','desc'), limit(300));
+  const snap = await getDocs(q2);
+  let data = [];
+  snap.forEach(d => data.push({...d.data(), _id: d.id}));
+
+  // rol filtresi
+  if(aktifLogFilter==='salon') data=data.filter(h=>h.kullanici_rol==='salon'||h.kullanici_rol==='yonetici');
+  else if(aktifLogFilter==='mutfak') data=data.filter(h=>h.kullanici_rol==='mutfak');
+
+  // tip filtresi
+  if(tip) data=data.filter(h=>h.islem_tipi===tip);
+
+  // tarih filtresi
+  if(tarih) {
+    const bas=new Date(tarih); bas.setHours(0,0,0,0);
+    const bit=new Date(tarih); bit.setHours(23,59,59,999);
+    data=data.filter(h=>{
+      const ts=h.timestamp?.toDate?.()||new Date(h.timestamp);
+      return ts>=bas && ts<=bit;
+    });
+  }
+
+  if(!data.length) { el.innerHTML='<div class="empty">Log bulunamadı</div>'; return; }
+
+  // kullanıcıya göre grupla
+  const gruplar={};
+  data.forEach(h=>{
+    const key=h.kullanici||'Bilinmiyor';
+    if(!gruplar[key]) gruplar[key]={rol:h.kullanici_rol||'',items:[]};
+    gruplar[key].items.push(h);
+  });
+
+  el.innerHTML = Object.entries(gruplar).map(([ad, grup])=>`
+    <div style="margin-bottom:20px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font-family:var(--mono);font-size:12px;font-weight:500">${ad}</span>
+        <span class="rol-pill rol-${grup.rol}">${grup.rol}</span>
+        <span style="font-family:var(--mono);font-size:11px;color:var(--text3)">${grup.items.length} işlem</span>
+      </div>
+      <div class="liste-wrap">
+        ${grup.items.map(h=>{
+          const ig=h.islem_tipi==='GİRİŞ', is=h.islem_tipi==='SAYIM';
+          const cls=ig?'har-giris':is?'har-sayim':'har-cikis';
+          const mc=ig?'giris':is?'sayim':'cikis';
+          return `<div class="har-item" style="grid-template-columns:auto 1fr auto auto">
+            <span class="har-tip ${cls}">${h.islem_tipi}</span>
+            <div><div class="har-urun">${h.urun_adi||''}</div><div class="har-barkod">${h.barkod||''}</div></div>
+            <div class="har-miktar ${mc}">${ig||is?'+':'-'}${h.miktar}</div>
+            <div class="har-zaman">${fmtZaman(h.timestamp)}</div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`).join('');
+}
 
 window.raporGetir = async function() {
   const bas = document.getElementById('rapor-bas').value;
