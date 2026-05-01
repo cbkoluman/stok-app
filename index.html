@@ -243,6 +243,14 @@ main{flex:1;padding:20px;max-width:1100px;margin:0 auto;width:100%}
 .gorsel-yukle-btn:hover{border-color:var(--accent);color:var(--accent)}
 .detay-gorsel{width:100%;max-height:200px;object-fit:contain;border-radius:var(--radius);margin-bottom:12px;background:var(--surface2)}
 
+/* ===== TEDARİKÇİ ===== */
+.tedarikciler-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-bottom:16px}
+.tedarikci-kart{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px}
+.tedarikci-ad{font-size:14px;font-weight:500;margin-bottom:4px}
+.tedarikci-tel{font-family:var(--mono);font-size:12px;color:var(--accent);cursor:pointer}
+.tedarikci-not{font-size:12px;color:var(--text2);margin-top:6px}
+.tedarikci-actions{display:flex;gap:4px;margin-top:10px}
+
 /* ===== FAB TARA ===== */
 .fab-tara{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:var(--accent);color:#000;border:none;border-radius:30px;padding:14px 32px;font-family:var(--mono);font-size:14px;font-weight:500;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,.4);z-index:90;display:none;align-items:center;gap:10px;transition:transform .15s,box-shadow .15s;white-space:nowrap}
 .fab-tara:active{transform:translateX(-50%) scale(0.96)}
@@ -449,9 +457,24 @@ main{flex:1;padding:20px;max-width:1100px;margin:0 auto;width:100%}
     <button class="panel-tab active" onclick="panelTab('kategoriler',this)">Kategoriler</button>
     <button class="panel-tab" onclick="panelTab('birimler',this)">Birimler</button>
     <button class="panel-tab" onclick="panelTab('personel',this)">Personel</button>
+    <button class="panel-tab" onclick="panelTab('tedarikciler',this)">Tedarikçiler</button>
     <button class="panel-tab" onclick="panelTab('rapor',this)">Stok Raporu</button>
     <button class="panel-tab" onclick="panelTab('sayim-gecmis',this)">Sayım Geçmişi</button>
     <button class="panel-tab" onclick="panelTab('import',this)">CSV Import</button>
+  </div>
+
+  <!-- TEDARİKÇİLER -->
+  <div id="panel-tedarikciler" class="panel-seksiyon">
+    <div class="panel-seksiyon-title"><span>Tedarikçiler</span><span id="ted-sayisi" style="color:var(--text3)"></span></div>
+    <input class="liste-search" id="ted-search" placeholder="Ara..." oninput="filterListe('ted')">
+    <div class="liste-wrap" id="ted-liste"></div>
+    <div class="mini-form" style="flex-wrap:wrap;gap:6px;margin-top:12px">
+      <input id="yeni-ted-ad" placeholder="Tedarikçi adı *" style="flex:1;min-width:120px">
+      <input id="yeni-ted-tel" placeholder="Telefon" style="width:130px">
+      <input id="yeni-ted-not" placeholder="Notlar" style="flex:1;min-width:120px">
+      <button class="btn-ghost" id="rehber-btn" onclick="window.rehberdenSec()" title="Rehberden seç" style="display:none">📱 Rehber</button>
+      <button class="btn-accent" onclick="window.tedEkle()">Ekle</button>
+    </div>
   </div>
 
   <!-- KATEGORİLER -->
@@ -568,6 +591,8 @@ main{flex:1;padding:20px;max-width:1100px;margin:0 auto;width:100%}
       <div class="form-row">
         <div class="form-group"><label class="form-label">Başlangıç stok</label><input class="inp" id="nu-stok" type="number" step="any" placeholder="0"></div>
         <div class="form-group"><label class="form-label">Kritik limit</label><input class="inp" id="nu-limit" type="number" step="any" placeholder="5"></div>
+      <div class="form-group"><label class="form-label">Alış fiyatı (₺)</label><input class="inp" id="nu-fiyat" type="number" step="any" placeholder="0.00"></div>
+      <div class="form-group"><label class="form-label">Tedarikçi</label><select class="inp" id="nu-tedarikci"><option value="">Seç...</option></select></div>
       </div>
     </div>
     <div class="modal-footer">
@@ -751,6 +776,11 @@ function girisOnayla() {
     const firstBtn=document.querySelector('#main-nav .nav-btn');
     if(firstBtn) firstBtn.classList.add('active');
     renderUrunler();
+  }
+  // rehber butonu göster
+  if('contacts' in navigator && 'ContactsManager' in window) {
+    const rb = document.getElementById('rehber-btn');
+    if(rb) rb.style.display = '';
   }
   // bildirim izni iste
   if('Notification' in window && Notification.permission === 'default') {
@@ -1037,6 +1067,8 @@ window.openDetayModal=async function(id){
       <div class="detail-row"><span class="detail-label">Kritik limit</span><span class="detail-val">${u.kritik_limit}</span></div>
       <div class="detail-row"><span class="detail-label">İlgi</span><span class="detail-val">${u.ilgi||'-'}</span></div>
       <div class="detail-row"><span class="detail-label">Kategori</span><span class="detail-val">${u.kategori||'-'}</span></div>
+      <div class="detail-row"><span class="detail-label">Tedarikçi</span><span class="detail-val">${u.tedarikci||'-'}</span></div>
+      <div class="detail-row"><span class="detail-label">Alış fiyatı</span><span class="detail-val">${u.alis_fiyati?u.alis_fiyati.toFixed(2)+' ₺':'-'}</span></div>
       <div class="detail-row"><span class="detail-label">Birim</span><span class="detail-val">${u.birim||'adet'}</span></div>
     </div>
     <div style="margin-bottom:12px">
@@ -1047,6 +1079,10 @@ window.openDetayModal=async function(id){
       <div class="form-row" style="margin-bottom:8px">
         <div><label class="form-label">Kategori</label><select class="inp" id="detay-kategori">${(window._detayKatlar||[]).map(k=>`<option value="${k}" ${u.kategori===k?'selected':''}>${k}</option>`).join('')}</select></div>
         <div><label class="form-label">Birim</label><select class="inp" id="detay-birim">${(window._detayBirimler||[]).map(b=>`<option value="${b}" ${u.birim===b?'selected':''}>${b}</option>`).join('')}</select></div>
+      </div>
+      <div class="form-row" style="margin-bottom:8px">
+        <div><label class="form-label">Alış fiyatı (₺)</label><input class="inp" id="detay-fiyat" type="number" step="any" value="${u.alis_fiyati||''}" placeholder="0.00"></div>
+        <div><label class="form-label">Tedarikçi</label><select class="inp" id="detay-tedarikci">${(window._detayTedarikciler||[]).map(t=>`<option value="${t}" ${u.tedarikci===t?'selected':''}>${t}</option>`).join('')}</select></div>
         <div></div>
       </div>
     </div>
@@ -1063,12 +1099,14 @@ window.openDetayModal=async function(id){
       </div>`;}).join(''):'<div style="color:var(--text3);font-size:12px;padding:8px 0">Henüz hareket yok</div>'}</div>
   `;
   // kategori ve birim dropdown'larını yükle
-  const [dKatSnap, dBirimSnap] = await Promise.all([
+  const [dKatSnap, dBirimSnap, dTedSnap] = await Promise.all([
     getDocs(collection(db,'kategoriler')),
-    getDocs(collection(db,'birim'))
+    getDocs(collection(db,'birim')),
+    getDocs(collection(db,'tedarikciler'))
   ]);
   window._detayKatlar = []; dKatSnap.forEach(d=>window._detayKatlar.push(d.id));
   window._detayBirimler = []; dBirimSnap.forEach(d=>window._detayBirimler.push(d.id));
+  window._detayTedarikciler = ['(Seç)',...[]]; dTedSnap.forEach(d=>window._detayTedarikciler.push(d.id));
   document.getElementById('detay-modal').classList.add('show');
   const sadeceBak=aktifKullanici?.rol!=='yonetici';
   const silBtn=document.getElementById('detay-sil-btn');
@@ -1083,11 +1121,13 @@ window.kaydetDetay=async function(){
   const detayIlgi=document.getElementById('detay-kat').value;
   const detayKat=document.getElementById('detay-kategori')?.value||'';
   const detayBirim=document.getElementById('detay-birim')?.value||'';
+  const detayFiyat=parseFloat(document.getElementById('detay-fiyat')?.value)||0;
+  const detayTedarikci=document.getElementById('detay-tedarikci')?.value||'';
   const detayUrunAdi=document.getElementById('detay-urun-adi')?.value.trim()||'';
   const yeniBarkod=document.getElementById('detay-barkod')?.value.trim()||'';
   const eskiBarkod=stokCache[detayAktifId]?.barkod;
 
-  const guncelleme={kritik_limit:limit2,ilgi:detayIlgi,kategori:detayKat,birim:detayBirim};
+  const guncelleme={kritik_limit:limit2,ilgi:detayIlgi,kategori:detayKat,birim:detayBirim,alis_fiyati:detayFiyat,tedarikci:detayTedarikci};
   if(detayUrunAdi) guncelleme.urun_adi=detayUrunAdi;
 
   // barkod değiştiyse: yeni doc oluştur, eskiyi sil
@@ -1161,9 +1201,10 @@ window.openUrunModal=async function(){
     barkodInp.addEventListener('blur', araFn);
     barkodInp.addEventListener('keydown', e=>{ if(e.key==='Enter') araFn(); });
   }
-  const [katSnap, birimSnap] = await Promise.all([
+  const [katSnap, birimSnap, tedSnap] = await Promise.all([
     getDocs(collection(db,'kategoriler')),
-    getDocs(collection(db,'birim'))
+    getDocs(collection(db,'birim')),
+    getDocs(collection(db,'tedarikciler'))
   ]);
   const katSel=document.getElementById('nu-kategori');
   if(katSel){
@@ -1174,6 +1215,11 @@ window.openUrunModal=async function(){
   if(birimSel){
     birimSel.innerHTML='<option value="">Seç...</option>';
     birimSnap.forEach(d=>birimSel.innerHTML+=`<option value="${d.id}">${d.id}</option>`);
+  }
+  const tedSel=document.getElementById('nu-tedarikci');
+  if(tedSel){
+    tedSel.innerHTML='<option value="">Seç...</option>';
+    tedSnap.forEach(d=>tedSel.innerHTML+=`<option value="${d.id}">${d.id}</option>`);
   }
 };
 window.closeUrunModal=function(){document.getElementById('urun-modal').classList.remove('show');['nu-barkod','nu-ad','nu-kat','nu-birim','nu-stok','nu-limit'].forEach(id=>document.getElementById(id).value='');};
@@ -1189,6 +1235,8 @@ window.saveYeniUrun=async function(){
     ilgi:ilgi,
     kategori:document.getElementById('nu-kategori')?.value||'',
     birim:document.getElementById('nu-birim').value||'adet',
+    alis_fiyati:parseFloat(document.getElementById('nu-fiyat')?.value)||0,
+    tedarikci:document.getElementById('nu-tedarikci')?.value||'',
     stok_miktari:parseFloat(document.getElementById('nu-stok').value)||0,
     kritik_limit:parseFloat(document.getElementById('nu-limit').value)||5,
     son_hareket:new Date()
@@ -1800,11 +1848,13 @@ function renderOzet(){
   const tukendi=data.filter(u=>dur(u.stok_miktari,u.kritik_limit)==='Tükendi').length;
   const el=document.getElementById('ozet-stats');
   if(!el) return;
+  const stokDegeri=data.reduce((t,u)=>t+((u.alis_fiyati||0)*(u.stok_miktari||0)),0);
   el.innerHTML=`
     <div class="stat-card"><div class="stat-label">Toplam ürün</div><div class="stat-val ok">${toplam}</div></div>
     <div class="stat-card"><div class="stat-label">Normal</div><div class="stat-val ok">${toplam-kritik-tukendi}</div></div>
     <div class="stat-card"><div class="stat-label">Kritik</div><div class="stat-val warn">${kritik}</div></div>
-    <div class="stat-card"><div class="stat-label">Tükendi</div><div class="stat-val danger">${tukendi}</div></div>`;
+    <div class="stat-card"><div class="stat-label">Tükendi</div><div class="stat-val danger">${tukendi}</div></div>
+    ${stokDegeri>0?`<div class="stat-card"><div class="stat-label">Stok Değeri</div><div class="stat-val" style="font-size:18px;color:var(--accent)">${stokDegeri.toLocaleString('tr-TR',{minimumFractionDigits:2})} ₺</div></div>`:''}`;
 
   const kritikler=data.filter(u=>dur(u.stok_miktari,u.kritik_limit)==='Kritik');
   const tukendenler=data.filter(u=>dur(u.stok_miktari,u.kritik_limit)==='Tükendi');
@@ -1858,8 +1908,62 @@ window.filterListe = function(tip) {
 };
 
 async function renderPanel() {
-  await Promise.all([loadKategoriler(), loadBirimler(), loadPersonel()]);
+  await Promise.all([loadKategoriler(), loadBirimler(), loadPersonel(), loadTedarikciler()]);
 }
+
+async function loadTedarikciler() {
+  const snap = await getDocs(collection(db,'tedarikciler'));
+  const el = document.getElementById('ted-liste');
+  const sayEl = document.getElementById('ted-sayisi');
+  const tedlar = [];
+  snap.forEach(d => tedlar.push({...d.data(), _id: d.id}));
+  if(sayEl) sayEl.textContent = tedlar.length + ' tedarikçi';
+  if(!el) return;
+  el.innerHTML = tedlar.length ? tedlar.map(t => `
+    <div class="liste-item">
+      <div>
+        <div class="liste-item-ad">${t._id}</div>
+        ${t.tel?`<div class="tedarikci-tel" onclick="window.open('tel:${t.tel}')">${t.tel}</div>`:''}
+        ${t.not?`<div style="font-size:11px;color:var(--text2);margin-top:2px">${t.not}</div>`:''}
+      </div>
+      <div class="liste-item-actions">
+        <button class="ic-btn" data-ted-duzenle="${t._id}">düzenle</button>
+        <button class="ic-btn red" data-ted-sil="${t._id}">sil</button>
+      </div>
+    </div>`).join('') : '<div style="color:var(--text3);font-size:12px;padding:8px 10px">Henüz tedarikçi yok</div>';
+}
+
+window.rehberdenSec = async function() {
+  if(!('contacts' in navigator && 'ContactsManager' in window)) {
+    toast('Bu cihaz rehber erişimini desteklemiyor','error');
+    return;
+  }
+  try {
+    const contacts = await navigator.contacts.select(['name','tel'], {multiple: false});
+    if(!contacts || !contacts.length) return;
+    const contact = contacts[0];
+    const ad = contact.name?.[0] || '';
+    const tel = contact.tel?.[0] || '';
+    if(ad) document.getElementById('yeni-ted-ad').value = ad;
+    if(tel) document.getElementById('yeni-ted-tel').value = tel;
+    toast('Kişi seçildi: ' + ad);
+  } catch(e) {
+    toast('Rehber açılamadı: ' + e.message, 'error');
+  }
+};
+
+window.tedEkle = async function() {
+  const ad = document.getElementById('yeni-ted-ad').value.trim();
+  const tel = document.getElementById('yeni-ted-tel').value.trim();
+  const not = document.getElementById('yeni-ted-not').value.trim();
+  if(!ad) { toast('Tedarikçi adı gir','error'); return; }
+  await setDoc(doc(db,'tedarikciler',ad), {tel, not, olusturuldu: new Date()});
+  document.getElementById('yeni-ted-ad').value='';
+  document.getElementById('yeni-ted-tel').value='';
+  document.getElementById('yeni-ted-not').value='';
+  toast(ad + ' eklendi','success');
+  loadTedarikciler();
+};
 
 async function loadBirimler() {
   const snap = await getDocs(collection(db,'birim'));
@@ -2210,6 +2314,27 @@ document.addEventListener('click', e => {
       : `"${ad}" silinecek. Devam edilsin mi?`;
     if(!confirm(uyari)) return;
     window.sayimiGeriAl(sayimSil);
+    return;
+  }
+  // tedarikçi düzenle
+  const tedDuzenle = e.target.dataset.tedDuzenle;
+  if(tedDuzenle) {
+    const yeni = prompt('Yeni tedarikçi adı:', tedDuzenle);
+    if(!yeni||yeni.trim()===tedDuzenle) return;
+    getDoc(doc(db,'tedarikciler',tedDuzenle)).then(snap=>{
+      const mevcut = snap.data()||{};
+      const batch = writeBatch(db);
+      batch.delete(doc(db,'tedarikciler',tedDuzenle));
+      batch.set(doc(db,'tedarikciler',yeni.trim()), mevcut);
+      batch.commit().then(()=>{ toast('Güncellendi','success'); loadTedarikciler(); });
+    });
+    return;
+  }
+  // tedarikçi sil
+  const tedSil = e.target.dataset.tedSil;
+  if(tedSil) {
+    if(!confirm('"'+tedSil+'" silinsin mi?')) return;
+    deleteDoc(doc(db,'tedarikciler',tedSil)).then(()=>{ toast('Silindi'); loadTedarikciler(); });
     return;
   }
   // birim düzenle
