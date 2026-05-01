@@ -312,7 +312,12 @@ main{flex:1;padding:20px;max-width:1100px;margin:0 auto;width:100%}
 <div id="page-urunler" class="page active">
   <div class="urunler-toolbar">
     <input class="inp search-inp" id="urun-search" placeholder="Ürün veya barkod ara..." oninput="renderUrunler()">
-    <button class="btn-accent" onclick="openUrunModal()">+ Ürün Ekle</button>
+    <div style="display:flex;gap:4px">
+      <button class="filter-btn active" id="ilgi-filter-hepsi" onclick="setIlgiFilter('hepsi')">Hepsi</button>
+      <button class="filter-btn" id="ilgi-filter-salon" onclick="setIlgiFilter('salon')">Salon</button>
+      <button class="filter-btn" id="ilgi-filter-mutfak" onclick="setIlgiFilter('mutfak')">Mutfak</button>
+    </div>
+    <button class="btn-accent add-btn" onclick="openUrunModal()">+ Ürün Ekle</button>
   </div>
   <div id="urun-grid-content"><div class="loading">Yükleniyor</div></div>
 </div>
@@ -738,6 +743,7 @@ document.addEventListener('click',e=>{
 let harCache = [];
 let aktifIslem = 'GİRİŞ';
 let aktifKat = 'Hepsi';
+let aktifIlgiFilter = 'hepsi';
 let aktifSayimId = null;
 let sayimCache = {};
 let sayimOturumlar = [];
@@ -811,9 +817,12 @@ window.renderUrunler = function(){
   if(ekleBtn) ekleBtn.style.display=aktifKullanici?.rol==='yonetici'?'':'none';
   const q=(document.getElementById('urun-search')?.value||'').toLowerCase();
   let data=Object.values(stokCache);
-  // rol bazlı filtre — yönetici her şeyi görür, salon sadece Salon, mutfak sadece Mutfak
+  // rol bazlı filtre
   if(aktifKullanici?.rol==='salon') data=data.filter(u=>u.ilgi==='Salon');
   else if(aktifKullanici?.rol==='mutfak') data=data.filter(u=>u.ilgi==='Mutfak');
+  // ilgi filtresi (yönetici için)
+  if(aktifIlgiFilter==='salon') data=data.filter(u=>u.ilgi==='Salon');
+  else if(aktifIlgiFilter==='mutfak') data=data.filter(u=>u.ilgi==='Mutfak');
   if(q) data=data.filter(u=>(u.urun_adi||'').toLowerCase().includes(q)||String(u.barkod).includes(q));
 
   const el=document.getElementById('urun-grid-content');
@@ -841,6 +850,7 @@ window.renderUrunler = function(){
   el.innerHTML=katSirali.map(kat=>{
     const urunler=sortUrunler(gruplar[kat]);
     const acik=acikKatlar.has(kat);
+    const ilgiSet=new Set(urunler.map(u=>u.ilgi||'').filter(Boolean));
     const kritikSayisi=urunler.filter(u=>dur(u.stok_miktari,u.kritik_limit)==='Kritik').length;
     const tukendiSayisi=urunler.filter(u=>dur(u.stok_miktari,u.kritik_limit)==='Tükendi').length;
     const badgeler=[];
@@ -852,6 +862,7 @@ window.renderUrunler = function(){
           <span class="kat-accordion-arrow${acik?' open':''}">▶</span>
           ${kat}
           <span style="color:var(--text3);font-weight:400">(${urunler.length})</span>
+          ${ilgiSet.size===1?`<span class="rol-pill ${[...ilgiSet][0]==='Salon'?'rol-salon':'rol-mutfak'}" style="font-size:10px">${[...ilgiSet][0]}</span>`:''}
           <div class="kat-badges">${badgeler.join('')}</div>
         </div>
       </div>
@@ -871,6 +882,15 @@ window.renderUrunler = function(){
         </div>
       </div>
     </div>`;}).join('');
+};
+
+window.setIlgiFilter=function(f){
+  aktifIlgiFilter=f;
+  ['hepsi','salon','mutfak'].forEach(x=>{
+    const btn=document.getElementById('ilgi-filter-'+x);
+    if(btn) btn.classList.toggle('active',x===f);
+  });
+  renderUrunler();
 };
 
 window.toggleKat=function(k){
@@ -961,7 +981,49 @@ window.silUrun=async function(){
 // ── YENİ ÜRÜN ──
 window.openUrunModal=async function(){
   document.getElementById('urun-modal').classList.add('show');
-  document.getElementById('nu-barkod').focus();
+  const barkodInp=document.getElementById('nu-barkod');
+  barkodInp.focus();
+
+  // barkod arama — bir kere listener ekle
+  if(!barkodInp._listenerEklendi){
+    barkodInp._listenerEklendi=true;
+    const araFn=async()=>{
+      const barkod=barkodInp.value.trim();
+      if(!barkod||barkod.length<4) return;
+      const adInp=document.getElementById('nu-ad');
+      if(adInp.value.trim()) return; // zaten dolu, dokunma
+      adInp.placeholder='Aranıyor...';
+      try {
+        // önce UPCitemdb dene
+        const r=await fetch('https://api.upcitemdb.com/prod/trial/lookup?upc='+barkod);
+        const data=await r.json();
+        if(data.items&&data.items[0]) {
+          adInp.value=data.items[0].title||'';
+          adInp.placeholder='Ürün adı';
+          if(adInp.value) toast('Ürün bulundu: '+adInp.value.slice(0,30));
+          return;
+        }
+      } catch(e) {}
+      try {
+        // Open Food Facts dene
+        const r2=await fetch('https://world.openfoodfacts.org/api/v0/product/'+barkod+'.json');
+        const data2=await r2.json();
+        if(data2.status===1&&data2.product) {
+          const p=data2.product;
+          const ad=p.product_name_tr||p.product_name||p.generic_name||'';
+          if(ad) {
+            adInp.value=ad;
+            adInp.placeholder='Ürün adı';
+            toast('Ürün bulundu: '+ad.slice(0,30));
+            return;
+          }
+        }
+      } catch(e) {}
+      adInp.placeholder='Ürün adı — bulunamadı, manuel girin';
+    };
+    barkodInp.addEventListener('blur', araFn);
+    barkodInp.addEventListener('keydown', e=>{ if(e.key==='Enter') araFn(); });
+  }
   const [katSnap, birimSnap] = await Promise.all([
     getDocs(collection(db,'kategoriler')),
     getDocs(collection(db,'birim'))
