@@ -162,10 +162,15 @@ main{flex:1;padding:20px;max-width:1100px;margin:0 auto;width:100%}
 .sayim-filter-row{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
 .sayim-filter-btn{padding:5px 10px;background:var(--surface);border:1px solid var(--border);color:var(--text2);font-size:11px;border-radius:20px;cursor:pointer}
 .sayim-filter-btn.active{border-color:var(--accent);color:var(--accent)}
-.gecmis-kart{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:8px}
-.gecmis-kart-header{display:flex;justify-content:space-between;margin-bottom:8px}
-.gecmis-sapma-list{display:flex;flex-direction:column;gap:4px;margin-top:8px}
-.gecmis-sapma-item{display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px solid var(--border)}
+.gecmis-kart{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:6px;overflow:hidden}
+.gecmis-kart-header{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;cursor:pointer;transition:background .15s;user-select:none}
+.gecmis-kart-header:hover{background:var(--surface2)}
+.gecmis-kart-body{display:none;padding:0 14px 12px;border-top:1px solid var(--border)}
+.gecmis-kart-body.acik{display:block}
+.gecmis-kart-arrow{font-size:10px;color:var(--text3);transition:transform .2s;margin-left:8px}
+.gecmis-kart-arrow.acik{transform:rotate(90deg)}
+.gecmis-sapma-list{display:flex;flex-direction:column;gap:2px;margin-top:10px}
+.gecmis-sapma-item{display:flex;justify-content:space-between;font-size:12px;padding:5px 0;border-bottom:1px solid var(--border)}
 .gecmis-sapma-item:last-child{border-bottom:none}
 
 /* ===== HAREKETLER ===== */
@@ -1383,27 +1388,44 @@ window.renderSayimAna=async function(){
     ${tamamlananlar.length?`<div class="card-title" style="margin-top:16px">Tamamlanan Sayımlar</div>
     ${tamamlananlar.map(s=>{
       const sapmalar=Object.values(s.sayilanlar||{}).filter(x=>x.fark!==0);
+      const sayilanSayisi=Object.keys(s.sayilanlar||{}).length;
       return `<div class="gecmis-kart">
-        <div class="gecmis-kart-header">
-          <div>
+        <div class="gecmis-kart-header" onclick="toggleGecmisKart('${s._id}')">
+          <div style="flex:1;min-width:0">
             <div style="font-weight:500;margin-bottom:2px">${s.ad}</div>
-            <div style="font-size:12px;color:var(--text2)">${fmtZaman(s.baslangic)}${s.bitis?' → '+fmtZaman(s.bitis):''}</div>
+            <div style="font-size:12px;color:var(--text2)">${fmtTarih(s.baslangic)}${s.bitis?' · '+fmtZaman(s.bitis).split(' ')[1]:''}</div>
           </div>
-          <div style="text-align:right;font-family:var(--mono);font-size:12px">
-            <div style="color:var(--text2)">${Object.keys(s.sayilanlar||{}).length} ürün</div>
-            <div style="color:${sapmalar.length?'var(--amber)':'var(--green)'}">${sapmalar.length} sapma</div>
+          <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
+            <div style="text-align:right;font-family:var(--mono);font-size:11px">
+              <span style="color:var(--text2)">${sayilanSayisi} ürün</span>
+              <span style="margin-left:6px;color:${sapmalar.length?'var(--amber)':'var(--green)'}">${sapmalar.length} sapma</span>
+            </div>
+            <span class="gecmis-kart-arrow" id="arrow-${s._id}">▶</span>
           </div>
         </div>
-        ${sapmalar.length?`<div class="gecmis-sapma-list">
-          ${sapmalar.slice(0,5).map(x=>`<div class="gecmis-sapma-item">
-            <span>${x.urun_adi}</span>
-            <span style="font-family:var(--mono);color:${x.fark>0?'var(--green)':'var(--red)'}">${x.fark>0?'+':''}${x.fark}</span>
-          </div>`).join('')}
-          ${sapmalar.length>5?`<div style="color:var(--text3);font-size:11px;padding-top:4px">+${sapmalar.length-5} daha...</div>`:''}
-        </div>`:''}
+        <div class="gecmis-kart-body" id="body-${s._id}">
+          ${sapmalar.length?`<div class="gecmis-sapma-list">
+            ${sapmalar.map(x=>`<div class="gecmis-sapma-item">
+              <span>${x.urun_adi}</span>
+              <div style="font-family:var(--mono);font-size:12px;display:flex;gap:10px;color:var(--text2)">
+                <span>${x.sistemStok} → ${x.sayilan}</span>
+                <span style="color:${x.fark>0?'var(--green)':'var(--red)'};font-weight:500">${x.fark>0?'+':''}${x.fark}</span>
+              </div>
+            </div>`).join('')}
+          </div>`:`<div style="color:var(--green);font-family:var(--mono);font-size:12px;padding-top:10px">Sapma yok ✓</div>`}
+          ${aktifKullanici?.rol==='yonetici'?`<button class="btn-danger" style="margin-top:10px;font-size:11px;padding:5px 10px" data-sayim-sil="${s._id}">Geri Al ve Sil</button>`:''}
+        </div>
       </div>`;}).join('')}`:''}
     ${!sayimOturumlar.length?'<div class="empty">Henüz sayım yapılmadı</div>':''}
   `;
+};
+
+window.toggleGecmisKart=function(id){
+  const body=document.getElementById('body-'+id);
+  const arrow=document.getElementById('arrow-'+id);
+  if(!body) return;
+  body.classList.toggle('acik');
+  if(arrow) arrow.classList.toggle('acik');
 };
 
 window.openSayimModal=function(){document.getElementById('sayim-modal').classList.add('show');document.getElementById('sayim-ad').focus();};
