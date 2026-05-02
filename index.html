@@ -452,8 +452,9 @@ main{flex:1;padding:20px;max-width:1100px;margin:0 auto;width:100%}
 <!-- SİPARİŞLER -->
 <div id="page-siparisler" class="page">
   <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
-    <div style="flex:1;font-family:var(--mono);font-size:12px;color:var(--text2)" id="siparis-bugun-info"></div>
-    <div style="display:flex;gap:4px" id="siparis-rol-filter" style="display:none">
+    <input type="date" id="siparis-tarih-filter" onchange="renderSiparisler()" style="background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:6px 10px;border-radius:var(--radius);outline:none;font-size:13px;font-family:var(--mono)">
+    <div style="font-family:var(--mono);font-size:12px;color:var(--text2)" id="siparis-bugun-info"></div>
+    <div style="display:flex;gap:4px;margin-left:auto" id="siparis-rol-filter" style="display:none">
       <button class="ilgi-pill active" id="sf-hepsi" onclick="setSiparisFilter('hepsi')">Hepsi</button>
       <button class="ilgi-pill" id="sf-salon" onclick="setSiparisFilter('salon')">Salon</button>
       <button class="ilgi-pill" id="sf-mutfak" onclick="setSiparisFilter('mutfak')">Mutfak</button>
@@ -2175,6 +2176,11 @@ async function renderSiparisler() {
   const bugun = new Date();
   const bugunGun = GUNLER[bugun.getDay()];
   const bugunStr = bugun.toISOString().split('T')[0];
+  // tarih filtresi — default bugün
+  const tarihInp = document.getElementById('siparis-tarih-filter');
+  if(tarihInp && !tarihInp.value) tarihInp.value = bugunStr;
+  const secilenTarih = tarihInp?.value || bugunStr;
+  const secilenGun = GUNLER[new Date(secilenTarih+'T12:00:00').getDay()];
   const rol = aktifKullanici?.rol;
   const rolIlgi = rol==='salon'?'Salon':rol==='mutfak'?'Mutfak':null;
 
@@ -2197,9 +2203,11 @@ async function renderSiparisler() {
 
   const hariciAyar = ayarlar['harici']||{};
   const hariciGunler = hariciAyar.gunler||[];
-  const bugunHariciAcik = hariciGunler.includes(bugunGun);
+  const bugunHariciAcik = hariciGunler.includes(secilenGun) && secilenTarih===bugunStr;
 
-  document.getElementById('siparis-bugun-info').textContent = bugunGun + ' · ' + bugun.toLocaleDateString('tr-TR');
+  const secilenDate = new Date(secilenTarih+'T12:00:00');
+  const gecmisMi = secilenTarih < bugunStr;
+  document.getElementById('siparis-bugun-info').textContent = secilenGun + ' · ' + secilenDate.toLocaleDateString('tr-TR') + (gecmisMi?' · Geçmiş':'') + (secilenTarih===bugunStr?' · Bugün':'');
 
   let html = '';
 
@@ -2210,10 +2218,10 @@ async function renderSiparisler() {
   for(const ted of tedlar) {
     const tedAyar = ayarlar[ted._id]||{};
     const tedGunler = tedAyar.gunler||[];
-    const bugunAcik = tedGunler.includes(bugunGun);
+    const bugunAcik = tedGunler.includes(secilenGun) && secilenTarih===bugunStr;
 
     // bu tedarikçinin siparişleri
-    let tedSiparisler = tumSiparisler.filter(s=>s.tedarikci===ted._id&&s.tarih===bugunStr);
+    let tedSiparisler = tumSiparisler.filter(s=>s.tedarikci===ted._id&&s.tarih===secilenTarih);
     if(rol==='yonetici') {
       if(aktifSiparisFilter==='salon') tedSiparisler=tedSiparisler.filter(s=>s.kullanici_rol==='salon');
       else if(aktifSiparisFilter==='mutfak') tedSiparisler=tedSiparisler.filter(s=>s.kullanici_rol==='mutfak');
@@ -2276,7 +2284,7 @@ async function renderSiparisler() {
   }
 
   // harici siparişler
-  let hariciSiparisler = tumSiparisler.filter(s=>s.tedarikci==='harici'&&s.tarih===bugunStr);
+  let hariciSiparisler = tumSiparisler.filter(s=>s.tedarikci==='harici'&&s.tarih===secilenTarih);
   if(rol==='yonetici') {
     if(aktifSiparisFilter==='salon') hariciSiparisler=hariciSiparisler.filter(s=>s.kullanici_rol==='salon');
     else if(aktifSiparisFilter==='mutfak') hariciSiparisler=hariciSiparisler.filter(s=>s.kullanici_rol==='mutfak');
