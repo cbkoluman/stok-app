@@ -1002,10 +1002,6 @@ document.addEventListener('click',e=>{
   if(fb&&fb.dataset.filtre){sayimFiltreAktif=fb.dataset.filtre;if(aktifSayimId)renderSayimDetay();return;}
   const ilgiFiltreBt=e.target.closest('[data-ilgi-filtre]');
   if(ilgiFiltreBt){sayimIlgiFiltre=ilgiFiltreBt.dataset.ilgiFiltre;if(aktifSayimId)renderSayimDetay();return;}
-  const katFiltreBt=e.target.closest('[data-kat-filtre]');
-  if(katFiltreBt){const k=katFiltreBt.dataset.katFiltre;sayimKategoriFiltre=sayimKategoriFiltre===k?'':k;sayimTedarikciFiltre='';if(aktifSayimId)renderSayimDetay();return;}
-  const tedFiltreBt=e.target.closest('[data-ted-filtre]');
-  if(tedFiltreBt){const t=tedFiltreBt.dataset.tedFiltre;sayimTedarikciFiltre=sayimTedarikciFiltre===t?'':t;sayimKategoriFiltre='';if(aktifSayimId)renderSayimDetay();return;}
   const db2=e.target.closest('[data-duzenle]');
   if(db2&&db2.dataset.duzenle){
     window.sayimDuzenle&&window.sayimDuzenle(db2.dataset.duzenle,aktifLokasyon);return;
@@ -1026,8 +1022,6 @@ let aktifSayimId = null;
 let sayimCache = {};
 let sayimOturumlar = [];
 let sayimIlgiFiltre = 'hepsi';
-let sayimKategoriFiltre = '';
-let sayimTedarikciFiltre = '';
 let detayAktifId = null;
 let islemKameraAcik = false;
 let islemVideoStream = null;
@@ -1661,6 +1655,7 @@ window.renderSayimAna=async function(){
         <span class="durum-pill" style="background:#1a2a4a;color:#4a8aff">DEVAM EDİYOR</span>
       </div>
       <div class="sayim-oturum-meta">${fmtZaman(s.baslangic)} · ${Object.keys(s.sayilanlar||{}).length} ürün sayıldı</div>
+      ${s.ilgi==='Hepsi'&&s.zone_durum?`<div style="display:flex;gap:6px;margin-top:4px"><span style="font-size:10px;padding:2px 7px;border-radius:10px;background:var(--surface2);color:${s.zone_durum.Salon==='tamamlandi'?'var(--green)':'var(--amber)'}">Salon ${s.zone_durum.Salon==='tamamlandi'?'✓':'…'}</span><span style="font-size:10px;padding:2px 7px;border-radius:10px;background:var(--surface2);color:${s.zone_durum.Mutfak==='tamamlandi'?'var(--green)':'var(--amber)'}">Mutfak ${s.zone_durum.Mutfak==='tamamlandi'?'✓':'…'}</span></div>`:''}
     </div>`).join('')}`:''}
     ${tamamlananlar.length?`<div class="card-title" style="margin-top:16px">Tamamlanan Sayımlar</div>
     ${tamamlananlar.map(s=>{
@@ -1735,7 +1730,8 @@ window.yeniSayimOlustur=async function(){
   const ilgi=document.getElementById('sayim-ilgi')?.value||'Hepsi';
   const kategori=document.getElementById('sayim-kategori')?.value||'';
   const tedarikci=document.getElementById('sayim-tedarikci')?.value||'';
-  const yeniSayimData={ad, not:document.getElementById('sayim-not').value.trim(), ilgi, kategori, tedarikci, baslangic:new Date(), durum:'devam', sayilanlar:{}};
+  const yeniSayimData={ad, not:document.getElementById('sayim-not').value.trim(), ilgi, kategori, tedarikci, baslangic:new Date(), durum:'devam', sayilanlar:{},
+    ...(ilgi==='Hepsi'?{zone_durum:{Salon:'bekliyor',Mutfak:'bekliyor'}}:{})};
   const ref=await addDoc(collection(db,'sayimlar'),yeniSayimData);
   sayimOturumlar.unshift({...yeniSayimData, _id:ref.id});
   closeSayimModal();
@@ -1748,8 +1744,6 @@ window.acSayim=function(id){
   aktifSayimId=id;
   sayimCache=sayimOturumlar.find(s=>s._id===id)?.sayilanlar||{};
   sayimIlgiFiltre='hepsi';
-  sayimKategoriFiltre='';
-  sayimTedarikciFiltre='';
   renderSayimDetay();
 };
 
@@ -1773,6 +1767,8 @@ function renderSayimDetay(){
   }
   const oturum=sayimOturumlar.find(s=>s._id===aktifSayimId)||{sayilanlar:{}};
   const tamamlandi=oturum.durum==='tamamlandi';
+  const isHepsiZone=oturum.ilgi==='Hepsi'&&!!oturum.zone_durum;
+  const zoneDurum=oturum.zone_durum||{};
   const urunler=Object.values(stokCache);
   const sayilanlar=sayimCache;
   // sayımın ilgi / kategori / tedarikçi filtresi
@@ -1785,16 +1781,22 @@ function renderSayimDetay(){
   if(sayimOturum.tedarikci) tumUrunler=tumUrunler.filter(u=>u.tedarikci===sayimOturum.tedarikci);
   const isYonetici=aktifKullanici?.rol==='yonetici';
   const kulRol=aktifKullanici?.rol;
+  let zoneBarHTML='';
+  if(isHepsiZone&&!tamamlandi){
+    const sD=zoneDurum.Salon==='tamamlandi';
+    const mD=zoneDurum.Mutfak==='tamamlandi';
+    const sP='<span style="display:inline-flex;align-items:center;gap:4px;font-size:12px;padding:4px 10px;border-radius:12px;background:var(--surface2);color:'+(sD?'var(--green)':'var(--amber)')+'">Salon '+(sD?'✓':'…')+(sD&&isYonetici?' <button class="btn-ghost" style="font-size:10px;padding:1px 6px" onclick="sayimiZoneGeriAl(&quot;'+aktifSayimId+'&quot;,&quot;Salon&quot;)">geri al</button>':'')+'</span>';
+    const mP='<span style="display:inline-flex;align-items:center;gap:4px;font-size:12px;padding:4px 10px;border-radius:12px;background:var(--surface2);color:'+(mD?'var(--green)':'var(--amber)')+'">Mutfak '+(mD?'✓':'…')+(mD&&isYonetici?' <button class="btn-ghost" style="font-size:10px;padding:1px 6px" onclick="sayimiZoneGeriAl(&quot;'+aktifSayimId+'&quot;,&quot;Mutfak&quot;)">geri al</button>':'')+'</span>';
+    const sB=!sD&&(kulRol==='salon'||isYonetici)?'<button class="btn-accent" onclick="sayimiZoneUygula(&quot;Salon&quot;)">Salon\'u Uygula</button>':'';
+    const mB=!mD&&(kulRol==='mutfak'||isYonetici)?'<button class="btn-accent" onclick="sayimiZoneUygula(&quot;Mutfak&quot;)">Mutfak\'ı Uygula</button>':'';
+    zoneBarHTML='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">'+sP+mP+sB+mB+'</div>';
+  }
   if(kulRol==='salon') tumUrunler=tumUrunler.filter(u=>u.ilgi==='Salon');
   else if(kulRol==='mutfak') tumUrunler=tumUrunler.filter(u=>u.ilgi==='Mutfak');
   else if(isYonetici){
     if(sayimIlgiFiltre==='salon') tumUrunler=tumUrunler.filter(u=>u.ilgi==='Salon');
     else if(sayimIlgiFiltre==='mutfak') tumUrunler=tumUrunler.filter(u=>u.ilgi==='Mutfak');
   }
-  const mevcutKategoriler=[...new Set(tumUrunler.filter(u=>u.kategori).map(u=>u.kategori))].sort();
-  const mevcutTedarikciler=[...new Set(tumUrunler.filter(u=>u.tedarikci).map(u=>u.tedarikci))].sort();
-  if(sayimKategoriFiltre) tumUrunler=tumUrunler.filter(u=>u.kategori===sayimKategoriFiltre);
-  else if(sayimTedarikciFiltre) tumUrunler=tumUrunler.filter(u=>u.tedarikci===sayimTedarikciFiltre);
   window.tumUrunlerCache=tumUrunler;
   const toplamUrun=tumUrunler.length;
   const sayilanSayisi=Object.keys(sayilanlar).length;
@@ -1849,8 +1851,9 @@ function renderSayimDetay(){
     '<div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap">'+
       '<button class="btn-ghost" onclick="renderSayimAna()">← Geri</button>'+
       '<div style="flex:1;font-weight:500">'+(oturum.ad||'Sayım')+'</div>'+
-      (!tamamlandi?'<button class="btn-accent" onclick="sayimiTamamla()">Sayımı Uygula</button>':'<span class="durum-pill durum-normal">Tamamlandı</span>')+
+      (tamamlandi?'<span class="durum-pill durum-normal">Tamamlandı</span>':(!isHepsiZone?'<button class="btn-accent" onclick="sayimiTamamla()">Sayımı Uygula</button>':''))+
     '</div>'+
+    zoneBarHTML+
     '<div class="sayim-ozet-bar">'+
       '<div class="sayim-ozet-item"><span>'+sayilanSayisi+'/'+toplamUrun+'</span>Sayılan</div>'+
       '<div class="sayim-ozet-item"><span style="color:var(--amber)">'+sapmalar.length+'</span>Sapma</div>'+
@@ -1887,16 +1890,6 @@ function renderSayimDetay(){
     (isYonetici&&sayimOturum.ilgi==='Hepsi'?
       '<div class="sayim-filter-row">'+
         ['hepsi','salon','mutfak'].map(f=>'<button class="sayim-filter-btn'+(sayimIlgiFiltre===f?' active':'')+'" data-ilgi-filtre="'+f+'">'+{hepsi:'Genel',salon:'Salon',mutfak:'Mutfak'}[f]+'</button>').join('')+
-      '</div>'
-    :'')+
-    (!sayimOturum.kategori&&mevcutKategoriler.length>1?
-      '<div class="sayim-filter-row">'+
-        mevcutKategoriler.map(k=>'<button class="sayim-filter-btn'+(sayimKategoriFiltre===k?' active':'')+'" data-kat-filtre="'+k.replace(/"/g,'&quot;')+'">'+k+'</button>').join('')+
-      '</div>'
-    :'')+
-    (!sayimOturum.tedarikci&&mevcutTedarikciler.length>1?
-      '<div class="sayim-filter-row">'+
-        mevcutTedarikciler.map(t=>'<button class="sayim-filter-btn'+(sayimTedarikciFiltre===t?' active':'')+'" data-ted-filtre="'+t.replace(/"/g,'&quot;')+'">'+t+'</button>').join('')+
       '</div>'
     :'')+
     '<div class="sayim-filter-row">'+
@@ -2080,6 +2073,85 @@ window.sayimiTamamla=async function(){
   toast('Sayım uygulandı','success');
   aktifSayimId=null;sayimCache={};
   renderSayimAna();
+};
+
+window.sayimiZoneUygula=async function(zone){
+  if(!aktifSayimId) return;
+  const oturum=sayimOturumlar.find(s=>s._id===aktifSayimId);
+  if(!oturum||!oturum.zone_durum) return;
+  if(oturum.zone_durum[zone]==='tamamlandi'){toast(zone+' bölümü zaten uygulandı','error');return;}
+  const zoneSayimlar=Object.values(sayimCache).filter(s=>{
+    const u=Object.values(stokCache).find(u=>String(u.barkod)===String(s.barkod));
+    return u?.ilgi===zone;
+  });
+  const sapmalar=zoneSayimlar.filter(x=>x.fark!==0);
+  const sayilanSayisi=zoneSayimlar.length;
+  const msg=sapmalar.length
+    ?`${sayilanSayisi} ${zone} ürünü sayıldı, ${sapmalar.length} üründe sapma var.\n\nSadece sayılan ürünlerin stokları güncellenecek.\n\nDevam edilsin mi?`
+    :`${sayilanSayisi} ${zone} ürünü sayıldı, sapma yok.\n\nTamamlansın mı?`;
+  if(!confirm(msg)) return;
+  const digerZone=zone==='Salon'?'Mutfak':'Salon';
+  const herIkiBitti=oturum.zone_durum[digerZone]==='tamamlandi';
+  const batch=writeBatch(db);
+  for(const s of sapmalar){
+    const u=Object.values(stokCache).find(u=>String(u.barkod)===String(s.barkod));
+    if(u){
+      batch.update(doc(db,'stok',u._id),{stok_miktari:s.sayilan,son_hareket:new Date()});
+      const harRef=doc(collection(db,'hareketler'));
+      batch.set(harRef,{
+        timestamp:new Date(),barkod:s.barkod,urun_adi:s.urun_adi,
+        islem_tipi:'SAYIM',miktar:Math.abs(s.fark),
+        onceki_stok:s.sistemStok,yeni_stok:s.sayilan,
+        sayim_id:aktifSayimId,sayim_zone:zone,
+        kullanici:aktifKullanici?.ad||'',kullanici_rol:aktifKullanici?.rol||''
+      });
+    }
+  }
+  const guncelleme={[`zone_durum.${zone}`]:'tamamlandi',[`zone_bitis.${zone}`]:new Date()};
+  if(herIkiBitti){guncelleme.durum='tamamlandi';guncelleme.bitis=new Date();}
+  batch.update(doc(db,'sayimlar',aktifSayimId),guncelleme);
+  await batch.commit();
+  const idx=sayimOturumlar.findIndex(s=>s._id===aktifSayimId);
+  if(idx!==-1){
+    if(!sayimOturumlar[idx].zone_durum) sayimOturumlar[idx].zone_durum={};
+    sayimOturumlar[idx].zone_durum[zone]='tamamlandi';
+    if(herIkiBitti){sayimOturumlar[idx].durum='tamamlandi';sayimOturumlar[idx].bitis=new Date();}
+  }
+  toast(zone+' bölümü uygulandı','success');
+  if(herIkiBitti){aktifSayimId=null;sayimCache={};renderSayimAna();}
+  else renderSayimDetay();
+};
+
+window.sayimiZoneGeriAl=async function(sayimId,zone){
+  if(aktifKullanici?.rol!=='yonetici'){toast('Yetki yok','error');return;}
+  const oturum=sayimOturumlar.find(s=>s._id===sayimId);
+  if(!oturum||oturum.zone_durum?.[zone]!=='tamamlandi'){toast('Bu bölüm uygulanmamış','error');return;}
+  if(!confirm('"'+(oturum.ad||'Sayım')+'" sayımının '+zone+' bölümü geri alınacak.\nStok değişiklikleri tersine çevrilecek. Devam edilsin mi?')) return;
+  try{
+    const sayilanlar=Object.values(oturum.sayilanlar||{});
+    const harSnap=await getDocs(query(collection(db,'hareketler'),where('sayim_id','==',sayimId)));
+    const batch=writeBatch(db);
+    for(const s of sayilanlar){
+      if(s.fark===0) continue;
+      const u=Object.values(stokCache).find(u=>String(u.barkod)===String(s.barkod));
+      if(u&&u.ilgi===zone){
+        batch.update(doc(db,'stok',u._id),{stok_miktari:parseFloat(s.sistemStok)||0,son_hareket:new Date()});
+      }
+    }
+    harSnap.forEach(d=>{if(d.data().sayim_zone===zone) batch.delete(d.ref);});
+    const guncelleme={[`zone_durum.${zone}`]:'bekliyor'};
+    if(oturum.durum==='tamamlandi') guncelleme.durum='devam';
+    batch.update(doc(db,'sayimlar',sayimId),guncelleme);
+    await batch.commit();
+    const idx=sayimOturumlar.findIndex(s=>s._id===sayimId);
+    if(idx!==-1){
+      sayimOturumlar[idx].zone_durum[zone]='bekliyor';
+      if(oturum.durum==='tamamlandi') sayimOturumlar[idx].durum='devam';
+    }
+    toast(zone+' bölümü geri alındı','success');
+    if(aktifSayimId===sayimId) renderSayimDetay();
+    else renderSayimAna();
+  }catch(e){toast('Hata: '+e.message,'error');}
 };
 
 // ── HAREKETLER ──
