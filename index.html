@@ -2242,17 +2242,31 @@ async function renderSiparisler() {
           </div>
           <div class="siparis-satir-miktar">${s.miktar||'—'}</div>
           <span class="siparis-durum siparis-${s.durum||'bekliyor'}">${{bekliyor:'Bekliyor',onaylandi:'Onaylandı',reddedildi:'Reddedildi'}[s.durum||'bekliyor']}</span>
-          ${rol==='yonetici'&&s.durum==='bekliyor'?`
-            <button class="ic-btn" data-siparis-onayla="${s._id}">✓</button>
-            <button class="ic-btn red" data-siparis-reddet="${s._id}">✗</button>
-          `:''}
-          ${(rol!=='yonetici'&&s.kullanici===aktifKullanici?.ad&&s.durum==='bekliyor')?`<button class="ic-btn red" data-siparis-sil="${s._id}">sil</button>`:''}
+          ${rol==='yonetici'?`
+            ${s.durum==='bekliyor'?`
+              <button class="ic-btn" data-siparis-onayla="${s._id}" title="Onayla">✓</button>
+              <button class="ic-btn red" data-siparis-reddet="${s._id}" title="Reddet">✗</button>`:''}
+            <button class="ic-btn" data-siparis-duzenle="${s._id}" title="Düzenle">✎</button>
+            <button class="ic-btn red" data-siparis-sil="${s._id}" title="Sil">✕</button>
+          `:(s.kullanici===aktifKullanici?.ad&&s.durum==='bekliyor'?`<button class="ic-btn red" data-siparis-sil="${s._id}">sil</button>`:'')}
         </div>`).join('')}
       ${bugunAcik&&(rol!=='yonetici')?`
         <div class="siparis-ekle-form">
           <select class="inp" id="siparis-urun-${ted._id}" style="flex:1;font-size:13px">
             <option value="">Ürün seç...</option>
-            ${Object.values(stokCache).filter(u=>!rolIlgi||u.ilgi===rolIlgi).map(u=>`<option value="${u._id}">${u.urun_adi}</option>`).join('')}
+            ${Object.values(stokCache)
+              .filter(u=>(!rolIlgi||u.ilgi===rolIlgi)&&(!u.tedarikci||u.tedarikci===ted._id))
+              .sort((a,b)=>{
+                const da=dur(a.stok_miktari,a.kritik_limit);
+                const db2=dur(b.stok_miktari,b.kritik_limit);
+                const order={'Tükendi':0,'Kritik':1,'Normal':2};
+                return (order[da]||2)-(order[db2]||2);
+              })
+              .map(u=>{
+                const d=dur(u.stok_miktari,u.kritik_limit);
+                const prefix=d==='Tükendi'?'🔴 ':d==='Kritik'?'🟡 ':'';
+                return `<option value="${u._id}">${prefix}${u.urun_adi} (${u.stok_miktari} ${u.birim||'adet'})</option>`;
+              }).join('')}
           </select>
           <input class="inp" id="siparis-miktar-${ted._id}" type="number" step="any" placeholder="Miktar (opsiyonel)" style="width:160px">
           <input class="inp" id="siparis-not-${ted._id}" placeholder="Not" style="width:120px">
@@ -2288,11 +2302,13 @@ async function renderSiparisler() {
           </div>
           <div class="siparis-satir-miktar">${s.miktar||'—'}</div>
           <span class="siparis-durum siparis-${s.durum||'bekliyor'}">${{bekliyor:'Bekliyor',onaylandi:'Onaylandı',reddedildi:'Reddedildi'}[s.durum||'bekliyor']}</span>
-          ${rol==='yonetici'&&s.durum==='bekliyor'?`
-            <button class="ic-btn" data-siparis-onayla="${s._id}">✓</button>
-            <button class="ic-btn red" data-siparis-reddet="${s._id}">✗</button>
-          `:''}
-          ${(rol!=='yonetici'&&s.kullanici===aktifKullanici?.ad&&s.durum==='bekliyor')?`<button class="ic-btn red" data-siparis-sil="${s._id}">sil</button>`:''}
+          ${rol==='yonetici'?`
+            ${s.durum==='bekliyor'?`
+              <button class="ic-btn" data-siparis-onayla="${s._id}" title="Onayla">✓</button>
+              <button class="ic-btn red" data-siparis-reddet="${s._id}" title="Reddet">✗</button>`:''}
+            <button class="ic-btn" data-siparis-duzenle="${s._id}" title="Düzenle">✎</button>
+            <button class="ic-btn red" data-siparis-sil="${s._id}" title="Sil">✕</button>
+          `:(s.kullanici===aktifKullanici?.ad&&s.durum==='bekliyor'?`<button class="ic-btn red" data-siparis-sil="${s._id}">sil</button>`:'')}
         </div>`).join('')}
       ${bugunHariciAcik&&rol!=='yonetici'?`
         <div class="siparis-ekle-form">
@@ -2647,6 +2663,20 @@ document.addEventListener('click', e => {
   if(tedSil) {
     if(!confirm('"'+tedSil+'" silinsin mi?')) return;
     deleteDoc(doc(db,'tedarikciler',tedSil)).then(()=>{ toast('Silindi'); loadTedarikciler(); });
+    return;
+  }
+  // sipariş düzenle
+  const siparisDuzenle = e.target.dataset.siparisDuzenle;
+  if(siparisDuzenle) {
+    const yeniMiktar = prompt('Yeni miktar (boş bırakılabilir):');
+    if(yeniMiktar === null) return;
+    const yeniNot = prompt('Not:');
+    if(yeniNot === null) return;
+    const guncelleme = {};
+    if(yeniMiktar.trim()) guncelleme.miktar = parseFloat(yeniMiktar)||null;
+    if(yeniNot.trim() !== undefined) guncelleme.not = yeniNot.trim();
+    updateDoc(doc(db,'siparisler',siparisDuzenle), guncelleme)
+      .then(()=>{ toast('Güncellendi','success'); renderSiparisler(); });
     return;
   }
   // sipariş onayla
