@@ -659,7 +659,7 @@ main{flex:1;padding:20px;max-width:1100px;margin:0 auto;width:100%}
         <select class="inp" id="sayim-ilgi">
           <option value="Salon">Salon</option>
           <option value="Mutfak">Mutfak</option>
-          <option value="Hepsi">Hepsi (Yönetici)</option>
+          <option value="Hepsi">Genel</option>
         </select>
       </div>
       <div class="form-row">
@@ -933,6 +933,12 @@ document.addEventListener('click',e=>{
   }
   const fb=e.target.closest('[data-filtre]');
   if(fb&&fb.dataset.filtre){sayimFiltreAktif=fb.dataset.filtre;if(aktifSayimId)renderSayimDetay();return;}
+  const ilgiFiltreBt=e.target.closest('[data-ilgi-filtre]');
+  if(ilgiFiltreBt){sayimIlgiFiltre=ilgiFiltreBt.dataset.ilgiFiltre;if(aktifSayimId)renderSayimDetay();return;}
+  const katFiltreBt=e.target.closest('[data-kat-filtre]');
+  if(katFiltreBt){const k=katFiltreBt.dataset.katFiltre;sayimKategoriFiltre=sayimKategoriFiltre===k?'':k;sayimTedarikciFiltre='';if(aktifSayimId)renderSayimDetay();return;}
+  const tedFiltreBt=e.target.closest('[data-ted-filtre]');
+  if(tedFiltreBt){const t=tedFiltreBt.dataset.tedFiltre;sayimTedarikciFiltre=sayimTedarikciFiltre===t?'':t;sayimKategoriFiltre='';if(aktifSayimId)renderSayimDetay();return;}
   const db2=e.target.closest('[data-duzenle]');
   if(db2&&db2.dataset.duzenle){
     window.sayimDuzenle&&window.sayimDuzenle(db2.dataset.duzenle,aktifLokasyon);return;
@@ -951,6 +957,9 @@ let aktifIlgiFilter = 'hepsi';
 let aktifSayimId = null;
 let sayimCache = {};
 let sayimOturumlar = [];
+let sayimIlgiFiltre = 'hepsi';
+let sayimKategoriFiltre = '';
+let sayimTedarikciFiltre = '';
 let detayAktifId = null;
 let islemKameraAcik = false;
 let islemVideoStream = null;
@@ -1509,7 +1518,7 @@ window.renderSayimAna=async function(){
   // rol bazlı filtre — yönetici hepsini görür, salon/mutfak sadece kendi bölgesini
   const rolIlgi = aktifKullanici?.rol==='salon'?'Salon':aktifKullanici?.rol==='mutfak'?'Mutfak':null;
   const filtreliSayimlar = rolIlgi
-    ? sayimOturumlar.filter(s=>s.ilgi===rolIlgi)
+    ? sayimOturumlar.filter(s=>s.ilgi===rolIlgi||s.ilgi==='Hepsi')
     : sayimOturumlar;
   const aktifler=filtreliSayimlar.filter(s=>s.durum==='devam');
   const tamamlananlar=filtreliSayimlar.filter(s=>s.durum==='tamamlandi');
@@ -1605,10 +1614,9 @@ window.yeniSayimOlustur=async function(){
   const ilgi=document.getElementById('sayim-ilgi')?.value||'Hepsi';
   const kategori=document.getElementById('sayim-kategori')?.value||'';
   const tedarikci=document.getElementById('sayim-tedarikci')?.value||'';
-  const ref=await addDoc(collection(db,'sayimlar'),{
-    ad, not:document.getElementById('sayim-not').value.trim(),
-    ilgi, kategori, tedarikci, baslangic:new Date(), durum:'devam', sayilanlar:{}
-  });
+  const yeniSayimData={ad, not:document.getElementById('sayim-not').value.trim(), ilgi, kategori, tedarikci, baslangic:new Date(), durum:'devam', sayilanlar:{}};
+  const ref=await addDoc(collection(db,'sayimlar'),yeniSayimData);
+  sayimOturumlar.unshift({...yeniSayimData, _id:ref.id});
   closeSayimModal();
   document.getElementById('sayim-ad').value='';
   document.getElementById('sayim-not').value='';
@@ -1618,6 +1626,9 @@ window.yeniSayimOlustur=async function(){
 window.acSayim=function(id){
   aktifSayimId=id;
   sayimCache=sayimOturumlar.find(s=>s._id===id)?.sayilanlar||{};
+  sayimIlgiFiltre='hepsi';
+  sayimKategoriFiltre='';
+  sayimTedarikciFiltre='';
   renderSayimDetay();
 };
 
@@ -1651,7 +1662,19 @@ function renderSayimDetay(){
   else if(sayimIlgi==='Mutfak') tumUrunler=urunler.filter(u=>u.ilgi==='Mutfak');
   if(sayimOturum.kategori) tumUrunler=tumUrunler.filter(u=>u.kategori===sayimOturum.kategori);
   if(sayimOturum.tedarikci) tumUrunler=tumUrunler.filter(u=>u.tedarikci===sayimOturum.tedarikci);
-  window.tumUrunlerCache=tumUrunler; // isim arama için
+  const isYonetici=aktifKullanici?.rol==='yonetici';
+  const kulRol=aktifKullanici?.rol;
+  if(kulRol==='salon') tumUrunler=tumUrunler.filter(u=>u.ilgi==='Salon');
+  else if(kulRol==='mutfak') tumUrunler=tumUrunler.filter(u=>u.ilgi==='Mutfak');
+  else if(isYonetici){
+    if(sayimIlgiFiltre==='salon') tumUrunler=tumUrunler.filter(u=>u.ilgi==='Salon');
+    else if(sayimIlgiFiltre==='mutfak') tumUrunler=tumUrunler.filter(u=>u.ilgi==='Mutfak');
+  }
+  const mevcutKategoriler=[...new Set(tumUrunler.filter(u=>u.kategori).map(u=>u.kategori))].sort();
+  const mevcutTedarikciler=[...new Set(tumUrunler.filter(u=>u.tedarikci).map(u=>u.tedarikci))].sort();
+  if(sayimKategoriFiltre) tumUrunler=tumUrunler.filter(u=>u.kategori===sayimKategoriFiltre);
+  else if(sayimTedarikciFiltre) tumUrunler=tumUrunler.filter(u=>u.tedarikci===sayimTedarikciFiltre);
+  window.tumUrunlerCache=tumUrunler;
   const toplamUrun=tumUrunler.length;
   const sayilanSayisi=Object.keys(sayilanlar).length;
   const sapmalar=Object.values(sayilanlar).filter(x=>((x.salon||0)+(x.depo||0))!==x.sistemStok);
@@ -1740,6 +1763,21 @@ function renderSayimDetay(){
         )+
       '</div>'
     :'')+
+    (isYonetici&&sayimOturum.ilgi==='Hepsi'?
+      '<div class="sayim-filter-row">'+
+        ['hepsi','salon','mutfak'].map(f=>'<button class="sayim-filter-btn'+(sayimIlgiFiltre===f?' active':'')+'" data-ilgi-filtre="'+f+'">'+{hepsi:'Genel',salon:'Salon',mutfak:'Mutfak'}[f]+'</button>').join('')+
+      '</div>'
+    :'')+
+    (!sayimOturum.kategori&&mevcutKategoriler.length>1?
+      '<div class="sayim-filter-row">'+
+        mevcutKategoriler.map(k=>'<button class="sayim-filter-btn'+(sayimKategoriFiltre===k?' active':'')+'" data-kat-filtre="'+k.replace(/"/g,'&quot;')+'">'+k+'</button>').join('')+
+      '</div>'
+    :'')+
+    (!sayimOturum.tedarikci&&mevcutTedarikciler.length>1?
+      '<div class="sayim-filter-row">'+
+        mevcutTedarikciler.map(t=>'<button class="sayim-filter-btn'+(sayimTedarikciFiltre===t?' active':'')+'" data-ted-filtre="'+t.replace(/"/g,'&quot;')+'">'+t+'</button>').join('')+
+      '</div>'
+    :'')+
     '<div class="sayim-filter-row">'+
       ['hepsi','sayilmadi','sayildi','sapma'].map(f=>'<button class="sayim-filter-btn'+(sayimFiltreAktif===f?' active':'')+'" data-filtre="'+f+'">'+{hepsi:'Hepsi',sayilmadi:'Sayılmadı',sayildi:'Sayıldı',sapma:'Sapma'}[f]+'</button>').join('')+
     '</div>'+
@@ -1811,9 +1849,7 @@ window.sayimIsimAra=function(){
   if(!q){sonucEl.classList.remove('acik');sonucEl.innerHTML='';return;}
 
   // rol filtreli cache kullan
-  let aramaHavuzu=window.tumUrunlerCache||[];
-  if(aktifKullanici?.rol==='salon') aramaHavuzu=aramaHavuzu.filter(u=>u.ilgi==='Salon');
-  else if(aktifKullanici?.rol==='mutfak') aramaHavuzu=aramaHavuzu.filter(u=>u.ilgi==='Mutfak');
+  const aramaHavuzu=window.tumUrunlerCache||[];
 
   const sonuclar=aramaHavuzu.filter(u=>(u.urun_adi||'').toLowerCase().includes(q)||(String(u.barkod)||'').includes(q)).slice(0,8);
   if(!sonuclar.length){sonucEl.classList.add('acik');sonucEl.innerHTML='<div style="padding:10px 12px;color:var(--text3);font-size:12px">Bulunamadı</div>';return;}
