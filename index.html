@@ -803,10 +803,7 @@ function girisOnayla() {
 
   // rol bazlı nav
   const nav = document.getElementById('main-nav');
-  if(rol === 'mutfak') {
-    nav.innerHTML = '<button class="nav-btn active" onclick="goPage(&quot;sayim&quot;,this)">Sayım</button>';
-    goPage('sayim', nav.querySelector('.nav-btn'));
-  } else if(rol === 'salon' || rol === 'mutfak') {
+  if(rol === 'salon' || rol === 'mutfak') {
     nav.innerHTML = '<button class="nav-btn active" onclick="goPage(&quot;sayim&quot;,this)">Sayım</button>'+
       '<button class="nav-btn" onclick="goPage(&quot;siparisler&quot;,this)">Siparişler</button>';
     goPage('sayim', nav.querySelector('.nav-btn'));
@@ -1132,11 +1129,21 @@ window.openDetayModal=async function(id){
   const d=dur(u.stok_miktari,u.kritik_limit),dc=durClass(d);
   document.getElementById('detay-modal-title').innerHTML=`<input id="detay-urun-adi" value="${u.urun_adi}" style="background:none;border:none;border-bottom:1px solid var(--border2);color:var(--text);font-size:15px;font-weight:500;width:100%;outline:none;padding:2px 0" placeholder="Ürün adı">`;
 
-  // son 5 hareket
-  const harQ2=query(collection(db,'hareketler'),where('barkod','==',String(u.barkod)),orderBy('timestamp','desc'),limit(5));
-  const harSnap=await getDocs(harQ2);
+  // tüm veriyi paralel çek, sonra render et
+  const [harSnap, dKatSnap, dBirimSnap, dTedSnap] = await Promise.all([
+    getDocs(query(collection(db,'hareketler'),where('barkod','==',String(u.barkod)),orderBy('timestamp','desc'),limit(5))),
+    getDocs(collection(db,'kategoriler')),
+    getDocs(collection(db,'birim')),
+    getDocs(collection(db,'tedarikciler'))
+  ]);
   const harlar=[];
   harSnap.forEach(d2=>harlar.push(d2.data()));
+  const detayKatlar=[]; dKatSnap.forEach(d=>detayKatlar.push(d.id));
+  window._detayKatlar=detayKatlar;
+  const detayBirimler=[]; dBirimSnap.forEach(d=>detayBirimler.push(d.id));
+  window._detayBirimler=detayBirimler;
+  const detayTedarikciler=['(Seç)']; dTedSnap.forEach(d=>detayTedarikciler.push(d.id));
+  window._detayTedarikciler=detayTedarikciler;
 
   document.getElementById('detay-modal-body').innerHTML=`
     ${u.gorsel?`<img class="detay-gorsel" src="${u.gorsel}" onerror="this.style.display='none'">`:'' }
@@ -1156,12 +1163,12 @@ window.openDetayModal=async function(id){
         <div><label class="form-label">İlgi</label><select class="inp" id="detay-kat"><option value="Salon" ${(u.ilgi||'')==='Salon'?'selected':''}>Salon</option><option value="Mutfak" ${(u.ilgi||'')==='Mutfak'?'selected':''}>Mutfak</option></select></div>
       </div>
       <div class="form-row" style="margin-bottom:8px">
-        <div><label class="form-label">Kategori</label><select class="inp" id="detay-kategori">${(window._detayKatlar||[]).map(k=>`<option value="${k}" ${u.kategori===k?'selected':''}>${k}</option>`).join('')}</select></div>
-        <div><label class="form-label">Birim</label><select class="inp" id="detay-birim">${(window._detayBirimler||[]).map(b=>`<option value="${b}" ${u.birim===b?'selected':''}>${b}</option>`).join('')}</select></div>
+        <div><label class="form-label">Kategori</label><select class="inp" id="detay-kategori">${detayKatlar.map(k=>`<option value="${k}" ${u.kategori===k?'selected':''}>${k}</option>`).join('')}</select></div>
+        <div><label class="form-label">Birim</label><select class="inp" id="detay-birim">${detayBirimler.map(b=>`<option value="${b}" ${u.birim===b?'selected':''}>${b}</option>`).join('')}</select></div>
       </div>
       <div class="form-row" style="margin-bottom:8px">
         <div><label class="form-label">Alış fiyatı (₺)</label><input class="inp" id="detay-fiyat" type="number" step="any" value="${u.alis_fiyati||''}" placeholder="0.00"></div>
-        <div><label class="form-label">Tedarikçi</label><select class="inp" id="detay-tedarikci">${(window._detayTedarikciler||[]).map(t=>`<option value="${t}" ${u.tedarikci===t?'selected':''}>${t}</option>`).join('')}</select></div>
+        <div><label class="form-label">Tedarikçi</label><select class="inp" id="detay-tedarikci">${detayTedarikciler.map(t=>`<option value="${t}" ${u.tedarikci===t?'selected':''}>${t}</option>`).join('')}</select></div>
         <div></div>
       </div>
     </div>
@@ -1177,15 +1184,6 @@ window.openDetayModal=async function(id){
         <span style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-left:8px">→${h.yeni_stok}</span>
       </div>`;}).join(''):'<div style="color:var(--text3);font-size:12px;padding:8px 0">Henüz hareket yok</div>'}</div>
   `;
-  // kategori ve birim dropdown'larını yükle
-  const [dKatSnap, dBirimSnap, dTedSnap] = await Promise.all([
-    getDocs(collection(db,'kategoriler')),
-    getDocs(collection(db,'birim')),
-    getDocs(collection(db,'tedarikciler'))
-  ]);
-  window._detayKatlar = []; dKatSnap.forEach(d=>window._detayKatlar.push(d.id));
-  window._detayBirimler = []; dBirimSnap.forEach(d=>window._detayBirimler.push(d.id));
-  window._detayTedarikciler = ['(Seç)',...[]]; dTedSnap.forEach(d=>window._detayTedarikciler.push(d.id));
   document.getElementById('detay-modal').classList.add('show');
   const sadeceBak=aktifKullanici?.rol!=='yonetici';
   const silBtn=document.getElementById('detay-sil-btn');
@@ -1383,7 +1381,7 @@ window.submitIslem=async function(){
   if(!barkod){toast('Barkod gir!','error');return;}
   const u=Object.values(stokCache).find(u=>String(u.barkod)===String(barkod));
   if(!u){toast('Ürün bulunamadı!','error');return;}
-  const onceki=parseInt(u.stok_miktari)||0;
+  const onceki=parseFloat(u.stok_miktari)||0;
   const yeni=aktifIslem==='GİRİŞ'?onceki+miktar:onceki-miktar;
   if(yeni<0){toast('Yetersiz stok! Mevcut: '+onceki,'error');return;}
   const btn=document.getElementById('islem-submit');
@@ -1810,7 +1808,7 @@ window.sayimDuzenle=function(barkod, lok){
   s[lok]=val;
   const toplam=(s.salon!=null?s.salon:0)+(s.depo!=null?s.depo:0);
   s.sayilan=toplam;
-  s.fark=toplam-(parseInt(u?.stok_miktari)||0);
+  s.fark=toplam-(parseFloat(u?.stok_miktari)||0);
   sayimCache[barkod]=s;
   updateDoc(doc(db,'sayimlar',aktifSayimId),{sayilanlar:sayimCache});
   renderSayimDetay();
@@ -1843,7 +1841,7 @@ function sayimEkleManuel(barkod, miktarStr, lokasyon='salon'){
   const miktar=parseFloat(miktarStr);
   if(isNaN(miktar)||miktar<0){toast('Geçerli miktar gir','error');return;}
   // mevcut kaydı al, yoksa sadece girilecek lokasyonu set et — diğerini undefined bırak
-  const mevcut=sayimCache[barkod]||{barkod,urun_adi:u.urun_adi,sistemStok:parseInt(u.stok_miktari)||0};
+  const mevcut=sayimCache[barkod]||{barkod,urun_adi:u.urun_adi,sistemStok:parseFloat(u.stok_miktari)||0};
   mevcut[lokasyon]=miktar;
   const toplam=(mevcut.salon!=null?mevcut.salon:0)+(mevcut.depo!=null?mevcut.depo:0);
   mevcut.sayilan=toplam;
@@ -2155,6 +2153,7 @@ window.sayimiGeriAl = async function(sayimId) {
     
     sayimOturumlar = sayimOturumlar.filter(s=>s._id!==sayimId);
     toast('Sayım geri alındı ve silindi','success');
+    renderSayimAna();
     loadSayimGecmis();
   } catch(e) {
     toast('Hata: '+e.message,'error');
@@ -2237,6 +2236,12 @@ window.renderSiparisler = async function renderSiparisler() {
     }
 
     if(!bugunAcik && !tedSiparisler.length) continue;
+    // rol filtresi: yönetici değilse, bu tedarikçiye atanmış ilgili ürün yoksa ve sipariş de yoksa atla
+    if(rol !== 'yonetici' && !tedSiparisler.length) {
+      const ilgiliUrunVar = Object.values(stokCache)
+        .some(u=>(!rolIlgi||u.ilgi===rolIlgi) && u.tedarikci===ted._id);
+      if(!ilgiliUrunVar) continue;
+    }
 
     html += `<div class="siparis-grup">
       <div class="siparis-grup-header">
@@ -2877,17 +2882,6 @@ function gorselKucult(file, maxSize, quality) {
   });
 }
 
-// barkod aramasında görsel de çek
-async function gorselAra(barkod) {
-  try {
-    const r = await fetch('https://world.openfoodfacts.org/api/v0/product/'+barkod+'.json');
-    const data = await r.json();
-    if(data.status===1 && data.product?.image_front_small_url) {
-      return data.product.image_front_small_url;
-    }
-  } catch(e) {}
-  return null;
-}
 
 </script>
 </body>
