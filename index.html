@@ -662,6 +662,10 @@ main{flex:1;padding:20px;max-width:1100px;margin:0 auto;width:100%}
           <option value="Hepsi">Hepsi (Yönetici)</option>
         </select>
       </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Kategori (opsiyonel)</label><select class="inp" id="sayim-kategori"><option value="">Tümü</option></select></div>
+        <div class="form-group"><label class="form-label">Tedarikçi (opsiyonel)</label><select class="inp" id="sayim-tedarikci"><option value="">Tümü</option></select></div>
+      </div>
       <div class="form-group"><label class="form-label">Notlar</label><input class="inp" id="sayim-not" placeholder="Opsiyonel"></div>
     </div>
     <div class="modal-footer">
@@ -1518,9 +1522,11 @@ window.renderSayimAna=async function(){
     ${aktifler.length?`<div class="card-title">Devam Eden</div>
     ${aktifler.map(s=>`<div class="sayim-oturum-kart aktif-oturum" onclick="acSayim('${s._id}')">
       <div class="sayim-oturum-header">
-        <div style="display:flex;align-items:center;gap:6px">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
           <span style="font-weight:500">${s.ad}</span>
           ${s.ilgi&&s.ilgi!=='Hepsi'?`<span class="rol-pill ${s.ilgi==='Salon'?'rol-salon':'rol-mutfak'}" style="font-size:10px">${s.ilgi}</span>`:''}
+          ${s.kategori?`<span class="kat-badge" style="background:var(--surface2);color:var(--text2);font-size:10px">${s.kategori}</span>`:''}
+          ${s.tedarikci?`<span class="kat-badge" style="background:var(--surface2);color:var(--text2);font-size:10px">${s.tedarikci}</span>`:''}
         </div>
         <span class="durum-pill" style="background:#1a2a4a;color:#4a8aff">DEVAM EDİYOR</span>
       </div>
@@ -1533,9 +1539,11 @@ window.renderSayimAna=async function(){
       return `<div class="gecmis-kart">
         <div class="gecmis-kart-header" onclick="toggleGecmisKart('${s._id}')">
           <div style="flex:1;min-width:0">
-            <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:2px">
               <span style="font-weight:500">${s.ad}</span>
               ${s.ilgi&&s.ilgi!=='Hepsi'?`<span class="rol-pill ${s.ilgi==='Salon'?'rol-salon':'rol-mutfak'}" style="font-size:10px">${s.ilgi}</span>`:''}
+              ${s.kategori?`<span class="kat-badge" style="background:var(--surface2);color:var(--text2);font-size:10px">${s.kategori}</span>`:''}
+              ${s.tedarikci?`<span class="kat-badge" style="background:var(--surface2);color:var(--text2);font-size:10px">${s.tedarikci}</span>`:''}
             </div>
             <div style="font-size:12px;color:var(--text2)">${fmtTarih(s.baslangic)}${s.bitis?' · '+fmtZaman(s.bitis).split(' ')[1]:''}</div>
           </div>
@@ -1572,15 +1580,34 @@ window.toggleGecmisKart=function(id){
   if(arrow) arrow.classList.toggle('acik');
 };
 
-window.openSayimModal=function(){document.getElementById('sayim-modal').classList.add('show');document.getElementById('sayim-ad').focus();};
-window.closeSayimModal=function(){document.getElementById('sayim-modal').classList.remove('show');};
+window.openSayimModal=async function(){
+  document.getElementById('sayim-modal').classList.add('show');
+  document.getElementById('sayim-ad').focus();
+  const [katSnap, tedSnap] = await Promise.all([
+    getDocs(collection(db,'kategoriler')),
+    getDocs(collection(db,'tedarikciler'))
+  ]);
+  const katSel=document.getElementById('sayim-kategori');
+  katSel.innerHTML='<option value="">Tümü</option>';
+  katSnap.forEach(d=>katSel.innerHTML+=`<option value="${d.id}">${d.id}</option>`);
+  const tedSel=document.getElementById('sayim-tedarikci');
+  tedSel.innerHTML='<option value="">Tümü</option>';
+  tedSnap.forEach(d=>tedSel.innerHTML+=`<option value="${d.id}">${d.id}</option>`);
+};
+window.closeSayimModal=function(){
+  document.getElementById('sayim-modal').classList.remove('show');
+  document.getElementById('sayim-kategori').value='';
+  document.getElementById('sayim-tedarikci').value='';
+};
 window.yeniSayimOlustur=async function(){
   const ad=document.getElementById('sayim-ad').value.trim();
   if(!ad){toast('Sayım adı gir','error');return;}
   const ilgi=document.getElementById('sayim-ilgi')?.value||'Hepsi';
+  const kategori=document.getElementById('sayim-kategori')?.value||'';
+  const tedarikci=document.getElementById('sayim-tedarikci')?.value||'';
   const ref=await addDoc(collection(db,'sayimlar'),{
     ad, not:document.getElementById('sayim-not').value.trim(),
-    ilgi, baslangic:new Date(), durum:'devam', sayilanlar:{}
+    ilgi, kategori, tedarikci, baslangic:new Date(), durum:'devam', sayilanlar:{}
   });
   closeSayimModal();
   document.getElementById('sayim-ad').value='';
@@ -1616,11 +1643,14 @@ function renderSayimDetay(){
   const tamamlandi=oturum.durum==='tamamlandi';
   const urunler=Object.values(stokCache);
   const sayilanlar=sayimCache;
-  // sayımın ilgisine göre ürün filtresi
+  // sayımın ilgi / kategori / tedarikçi filtresi
+  const sayimOturum=sayimOturumlar.find(s=>s._id===aktifSayimId)||{};
   let tumUrunler=[...urunler];
   const sayimIlgi=getSayimIlgi();
   if(sayimIlgi==='Salon') tumUrunler=urunler.filter(u=>u.ilgi==='Salon');
   else if(sayimIlgi==='Mutfak') tumUrunler=urunler.filter(u=>u.ilgi==='Mutfak');
+  if(sayimOturum.kategori) tumUrunler=tumUrunler.filter(u=>u.kategori===sayimOturum.kategori);
+  if(sayimOturum.tedarikci) tumUrunler=tumUrunler.filter(u=>u.tedarikci===sayimOturum.tedarikci);
   window.tumUrunlerCache=tumUrunler; // isim arama için
   const toplamUrun=tumUrunler.length;
   const sayilanSayisi=Object.keys(sayilanlar).length;
