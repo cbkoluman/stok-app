@@ -807,9 +807,8 @@ function girisOnayla() {
     nav.innerHTML = '<button class="nav-btn active" onclick="goPage(&quot;sayim&quot;,this)">Sayım</button>';
     goPage('sayim', nav.querySelector('.nav-btn'));
   } else if(rol === 'salon' || rol === 'mutfak') {
-    nav.innerHTML = `
-      <button class="nav-btn active" onclick="goPage('sayim',this)">Sayım</button>
-      <button class="nav-btn" onclick="goPage('siparisler',this)">Siparişler</button>`;
+    nav.innerHTML = '<button class="nav-btn active" onclick="goPage(&quot;sayim&quot;,this)">Sayım</button>'+
+      '<button class="nav-btn" onclick="goPage(&quot;siparisler&quot;,this)">Siparişler</button>';
     goPage('sayim', nav.querySelector('.nav-btn'));
   }
   // yönetici için panel ve loglar butonu göster
