@@ -1018,7 +1018,14 @@ window.goPage = function(name, btn){
   if(name==='islemler') setTimeout(()=>document.getElementById('islem-barkod')?.focus(),100);
   if(name==='panel') renderPanel();
   if(name==='loglar') renderLoglar();
-  if(name==='siparisler') renderSiparisler();
+  if(name==='siparisler') {
+    // tarih inputunu bugüne set et sonra render et
+    setTimeout(()=>{
+      const ti=document.getElementById('siparis-tarih-filter');
+      if(ti&&!ti.value) ti.value=new Date().toISOString().split('T')[0];
+      renderSiparisler();
+    }, 50);
+  }
   if(name==='panel'&&aktifPanelTab==='siparis-ayar') renderSiparisAyar();
   // FAB sadece sayım sayfasında ve mobilde görünsün
   const fab=document.getElementById('fab-tara');
@@ -2179,7 +2186,8 @@ async function renderSiparisler() {
   // tarih filtresi — default bugün
   const tarihInp = document.getElementById('siparis-tarih-filter');
   if(tarihInp && !tarihInp.value) tarihInp.value = bugunStr;
-  const secilenTarih = tarihInp?.value || bugunStr;
+  const secilenTarih = (tarihInp?.value) || bugunStr;
+  console.log('Seçilen tarih:', secilenTarih, 'Bugün:', bugunStr);
   const secilenGun = GUNLER[new Date(secilenTarih+'T12:00:00').getDay()];
   const rol = aktifKullanici?.rol;
   const rolIlgi = rol==='salon'?'Salon':rol==='mutfak'?'Mutfak':null;
