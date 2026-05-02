@@ -192,6 +192,18 @@ main{flex:1;padding:20px;max-width:1100px;margin:0 auto;width:100%}
 .stat-label{font-family:var(--mono);font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px}
 .stat-val{font-family:var(--mono);font-size:28px;font-weight:500}
 .stat-val.warn{color:var(--amber)}.stat-val.danger{color:var(--red)}.stat-val.ok{color:var(--green)}
+.gorev-form-panel{background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);padding:16px;margin-bottom:16px;display:none}
+.gorev-form-panel.acik{display:block}
+.gorev-liste{display:flex;flex-direction:column;gap:6px}
+.gorev-satir{display:flex;align-items:flex-start;gap:12px;padding:12px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius)}
+.gorev-satir.tamamlandi{opacity:.45}
+.gorev-cb{width:16px;height:16px;accent-color:var(--accent);margin-top:2px;flex-shrink:0;cursor:pointer}
+.gorev-icerik{flex:1;min-width:0}
+.gorev-baslik{font-size:14px;line-height:1.4}
+.gorev-satir.tamamlandi .gorev-baslik{text-decoration:line-through;color:var(--text2)}
+.gorev-meta{font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:3px}
+.gorev-sil{background:none;border:none;color:var(--text3);font-size:15px;cursor:pointer;padding:0 4px;flex-shrink:0;line-height:1}
+.gorev-sil:hover{color:var(--red)}
 .ozet-seksiyon{margin-bottom:24px}
 .ozet-seksiyon-title{font-family:var(--mono);font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px}
 .ozet-urun-liste{display:flex;flex-direction:column;gap:4px}
@@ -359,6 +371,7 @@ main{flex:1;padding:20px;max-width:1100px;margin:0 auto;width:100%}
     <button class="nav-btn" onclick="goPage('siparisler',this)">Siparişler</button>
     <button class="nav-btn" onclick="goPage('hareketler',this)">Hareketler</button>
     <button class="nav-btn" onclick="goPage('ozet',this)">Özet</button>
+    <button class="nav-btn" id="gorevler-nav-btn" onclick="goPage('gorevler',this)" style="display:none">Görevler</button>
     <button class="nav-btn" id="loglar-nav-btn" onclick="goPage('loglar',this)" style="display:none">Loglar</button>
     <button class="nav-btn" id="panel-nav-btn" onclick="goPage('panel',this)" style="display:none">Panel</button>
   </nav>
@@ -388,11 +401,28 @@ main{flex:1;padding:20px;max-width:1100px;margin:0 auto;width:100%}
   <div class="islem-layout">
     <div>
       <div class="card">
-        <div class="card-title">Barkod Tara</div>
-        <input class="inp inp-mono" id="islem-barkod" placeholder="Barkodu tara veya yaz..." autocomplete="off" style="margin-bottom:8px">
-        <button class="btn-ghost" style="width:100%;margin-bottom:8px" onclick="sorgulaIslem()">ÜRÜN BİLGİSİNİ GETİR</button>
-        <button class="kamera-btn hidden" id="islem-kamera-btn" onclick="toggleIslemKamera()">Kamera ile tara</button>
-        <div id="islem-reader"></div>
+        <div class="card-title">Ürün Seç</div>
+        <div class="sayim-mod-tabs" id="islem-mod-tabs">
+          <div class="sayim-mod-tab active" onclick="setIslemMod('barkod')">Barkod</div>
+          <div class="sayim-mod-tab" onclick="setIslemMod('isim')">Ürün Adı</div>
+          <div class="sayim-mod-tab" onclick="setIslemMod('tedarikci')">Tedarikçi</div>
+        </div>
+        <div id="islem-sec-barkod">
+          <input class="inp inp-mono" id="islem-barkod" placeholder="Barkodu tara veya yaz..." autocomplete="off" style="margin-bottom:8px">
+          <button class="btn-ghost" style="width:100%;margin-bottom:8px" onclick="sorgulaIslem()">ÜRÜN BİLGİSİNİ GETİR</button>
+          <button class="kamera-btn hidden" id="islem-kamera-btn" onclick="toggleIslemKamera()">Kamera ile tara</button>
+          <div id="islem-reader"></div>
+        </div>
+        <div id="islem-sec-isim" style="display:none">
+          <input class="inp" id="islem-isim-inp" placeholder="Ürün adı ile ara..." autocomplete="off" oninput="islemIsimAra()">
+          <div class="isim-arama-sonuc" id="islem-isim-sonuc"></div>
+        </div>
+        <div id="islem-sec-tedarikci" style="display:none">
+          <select class="inp" id="islem-ted-sec" onchange="islemTedSec()" style="margin-bottom:8px">
+            <option value="">-- Tedarikçi seç --</option>
+          </select>
+          <div class="isim-arama-sonuc" id="islem-ted-sonuc"></div>
+        </div>
         <div class="islem-row" style="margin-top:4px">
           <button class="islem-btn active-giris" id="btn-giris" onclick="setIslem('GİRİŞ')">GİRİŞ</button>
           <button class="islem-btn" id="btn-cikis" onclick="setIslem('ÇIKIŞ')">ÇIKIŞ</button>
@@ -447,6 +477,26 @@ main{flex:1;padding:20px;max-width:1100px;margin:0 auto;width:100%}
     <div class="ozet-seksiyon-title">Tükenen Ürünler</div>
     <div id="ozet-tukendi"><div class="loading">Yükleniyor</div></div>
   </div>
+</div>
+
+<!-- GÖREVLER -->
+<div id="page-gorevler" class="page">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+    <div style="font-family:var(--mono);font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em">Yapılacaklar</div>
+    <button class="btn-accent" style="font-size:11px;padding:7px 14px" onclick="toggleGorevForm()">+ Ekle</button>
+  </div>
+  <div class="gorev-form-panel" id="gorev-form">
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <input class="inp" id="gorev-baslik-inp" placeholder="Görev başlığı" maxlength="200">
+      <textarea class="inp" id="gorev-aciklama-inp" placeholder="Açıklama (isteğe bağlı)" rows="2" style="resize:vertical"></textarea>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input type="date" class="inp" id="gorev-tarih-inp" style="width:auto">
+        <button class="btn-accent" onclick="gorevEkle()">Kaydet</button>
+        <button class="btn-ghost" onclick="toggleGorevForm(false)">İptal</button>
+      </div>
+    </div>
+  </div>
+  <div id="gorev-liste"><div class="loading">Yükleniyor</div></div>
 </div>
 
 <!-- SİPARİŞLER -->
@@ -817,6 +867,8 @@ function girisOnayla() {
   if(panelBtn) panelBtn.style.display=rol==='yonetici'?'':'none';
   const loglarBtn=document.getElementById('loglar-nav-btn');
   if(loglarBtn) loglarBtn.style.display=rol==='yonetici'?'':'none';
+  const gorevlerBtn=document.getElementById('gorevler-nav-btn');
+  if(gorevlerBtn) gorevlerBtn.style.display=rol==='yonetici'?'':'none';
   // yönetici için ilk sayfayı render et
   if(rol==='yonetici') {
     const firstBtn=document.querySelector('#main-nav .nav-btn');
@@ -900,6 +952,7 @@ window.cikisYap = function() {
     <button class="nav-btn" onclick="goPage('siparisler',this)">Siparişler</button>
     <button class="nav-btn" onclick="goPage('hareketler',this)">Hareketler</button>
     <button class="nav-btn" onclick="goPage('ozet',this)">Özet</button>
+    <button class="nav-btn" id="gorevler-nav-btn" onclick="goPage('gorevler',this)" style="display:none">Görevler</button>
     <button class="nav-btn" id="loglar-nav-btn" onclick="goPage('loglar',this)" style="display:none">Loglar</button>
     <button class="nav-btn" id="panel-nav-btn" onclick="goPage('panel',this)" style="display:none">Panel</button>`;
   document.getElementById('giris-overlay').style.display = 'flex';
@@ -910,6 +963,20 @@ document.addEventListener('click',e=>{
   // lightbox aç
   const lb=e.target.closest('[data-lightbox]');
   if(lb){window.openLightbox(lb.dataset.lightbox);return;}
+  // işlemler sayfası ürün seçimi (isim/tedarikçi modları)
+  const islemSec=e.target.closest('[data-islem-sec]');
+  if(islemSec){
+    const barkod=islemSec.dataset.islemSec;
+    const u=Object.values(stokCache).find(u=>String(u.barkod)===String(barkod));
+    if(u){
+      islemBarkod.value=barkod;
+      window.sorgulaIslem();
+      document.getElementById('islem-isim-sonuc')?.classList.remove('acik');
+      if(islemMod==='isim') document.getElementById('islem-isim-inp').value=u.urun_adi;
+      toast(u.urun_adi+' seçildi');
+    }
+    return;
+  }
   // isim arama sonucu seç
   const isimSec=e.target.closest('[data-isim-sec]');
   if(isimSec){
@@ -952,6 +1019,7 @@ document.addEventListener('click',e=>{
 });
 let harCache = [];
 let aktifIslem = 'GİRİŞ';
+let islemMod = 'barkod';
 let aktifKat = 'Hepsi';
 let aktifIlgiFilter = 'hepsi';
 let aktifSayimId = null;
@@ -1027,6 +1095,7 @@ window.goPage = function(name, btn){
   if(name==='islemler') setTimeout(()=>document.getElementById('islem-barkod')?.focus(),100);
   if(name==='panel') renderPanel();
   if(name==='loglar') renderLoglar();
+  if(name==='gorevler') renderGorevler();
   if(name==='siparisler') {
     // tarih inputunu bugüne set et sonra render et
     setTimeout(()=>{
@@ -1188,12 +1257,13 @@ window.openDetayModal=async function(id){
     <div class="card-title" style="margin-top:8px">Son 5 Hareket</div>
     <div class="har-mini-list">${harlar.length?harlar.map(h=>{
       const ig=h.islem_tipi==='GİRİŞ',is=h.islem_tipi==='SAYIM';
+      const isAzaldi=is&&h.yeni_stok<h.onceki_stok;
       const cls=ig?'har-giris':is?'har-sayim':'har-cikis';
-      const mCls=ig?'giris':is?'sayim':'cikis';
+      const mCls=ig?'giris':isAzaldi?'cikis':is?'sayim':'cikis';
       return `<div class="har-mini-item">
         <span class="har-mini-tip ${cls}">${h.islem_tipi}</span>
         <span style="flex:1;color:var(--text2)">${fmtZaman(h.timestamp)}</span>
-        <span class="har-miktar ${mCls}" style="font-family:var(--mono);font-size:12px">${ig||is?'+':'-'}${h.miktar}</span>
+        <span class="har-miktar ${mCls}" style="font-family:var(--mono);font-size:12px">${ig||(is&&h.yeni_stok>=h.onceki_stok)?'+':'-'}${h.miktar}</span>
         <span style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-left:8px">→${h.yeni_stok}</span>
       </div>`;}).join(''):'<div style="color:var(--text3);font-size:12px;padding:8px 0">Henüz hareket yok</div>'}</div>
   `;
@@ -1354,10 +1424,11 @@ document.addEventListener('click', e => {
   if(ozet) { window.ozekUrunAc(ozet.dataset.id); return; }
 });
 
-// netum barkod okuyucu: islemler sayfasındayken odak otomatik input'ta kalsın
+// netum barkod okuyucu: islemler sayfasındayken barkod modunda odak otomatik input'ta kalsın
 document.addEventListener('keydown',e=>{
   const islemAktif=document.getElementById('page-islemler').classList.contains('active');
   if(!islemAktif) return;
+  if(islemMod!=='barkod') return;
   if(document.activeElement===islemBarkod) return;
   if(e.key.length===1&&!e.ctrlKey&&!e.metaKey&&!e.altKey){
     islemBarkod.focus();
@@ -1388,6 +1459,54 @@ window.chMiktar=function(delta){
   const inp=document.getElementById('islem-miktar');
   inp.value=Math.max(1,(parseInt(inp.value)||1)+delta);
 };
+window.setIslemMod=function(mod){
+  islemMod=mod;
+  document.querySelectorAll('#islem-mod-tabs .sayim-mod-tab').forEach((t,i)=>{
+    t.classList.toggle('active',['barkod','isim','tedarikci'][i]===mod);
+  });
+  document.getElementById('islem-sec-barkod').style.display=mod==='barkod'?'':'none';
+  document.getElementById('islem-sec-isim').style.display=mod==='isim'?'':'none';
+  document.getElementById('islem-sec-tedarikci').style.display=mod==='tedarikci'?'':'none';
+  if(mod==='barkod') setTimeout(()=>document.getElementById('islem-barkod')?.focus(),100);
+  if(mod==='isim') setTimeout(()=>document.getElementById('islem-isim-inp')?.focus(),100);
+  if(mod==='tedarikci'){
+    const sel=document.getElementById('islem-ted-sec');
+    const cur=sel.value;
+    const tedlar=[...new Set(Object.values(stokCache).map(u=>u.tedarikci).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+    sel.innerHTML='<option value="">-- Tedarikçi seç --</option>'+tedlar.map(t=>`<option${t===cur?' selected':''}>${t}</option>`).join('');
+    if(cur) window.islemTedSec();
+  }
+};
+window.islemIsimAra=function(){
+  const q=(document.getElementById('islem-isim-inp')?.value||'').toLowerCase().trim();
+  const sonucEl=document.getElementById('islem-isim-sonuc');
+  if(!q){sonucEl.classList.remove('acik');sonucEl.innerHTML='';return;}
+  const sonuclar=Object.values(stokCache).filter(u=>
+    (u.urun_adi||'').toLowerCase().includes(q)||(String(u.barkod)||'').includes(q)
+  ).sort((a,b)=>(a.urun_adi||'').localeCompare(b.urun_adi||'')).slice(0,10);
+  if(!sonuclar.length){sonucEl.classList.add('acik');sonucEl.innerHTML='<div style="padding:10px 12px;color:var(--text3);font-size:12px">Bulunamadı</div>';return;}
+  sonucEl.classList.add('acik');
+  sonucEl.innerHTML=sonuclar.map(u=>
+    `<div class="isim-sonuc-item" data-islem-sec="${u.barkod}">
+      <div><div class="isim-sonuc-ad">${u.urun_adi}</div><div class="isim-sonuc-meta">${u.barkod}</div></div>
+      <div class="isim-sonuc-meta">${u.stok_miktari} ${u.birim||'adet'}</div>
+    </div>`
+  ).join('');
+};
+window.islemTedSec=function(){
+  const ted=document.getElementById('islem-ted-sec')?.value;
+  const sonucEl=document.getElementById('islem-ted-sonuc');
+  if(!ted){sonucEl.classList.remove('acik');sonucEl.innerHTML='';return;}
+  const urunler=Object.values(stokCache).filter(u=>u.tedarikci===ted).sort((a,b)=>(a.urun_adi||'').localeCompare(b.urun_adi||''));
+  if(!urunler.length){sonucEl.classList.add('acik');sonucEl.innerHTML='<div style="padding:10px 12px;color:var(--text3);font-size:12px">Bu tedarikçiye ait ürün yok</div>';return;}
+  sonucEl.classList.add('acik');
+  sonucEl.innerHTML=urunler.map(u=>
+    `<div class="isim-sonuc-item" data-islem-sec="${u.barkod}">
+      <div><div class="isim-sonuc-ad">${u.urun_adi}</div><div class="isim-sonuc-meta">${u.barkod}</div></div>
+      <div class="isim-sonuc-meta">${u.stok_miktari} ${u.birim||'adet'}</div>
+    </div>`
+  ).join('');
+};
 window.submitIslem=async function(){
   const barkod=islemBarkod.value.trim();
   const miktar=parseFloat(document.getElementById('islem-miktar').value)||1;
@@ -1410,7 +1529,9 @@ window.submitIslem=async function(){
     islemBarkod.value='';
     document.getElementById('islem-miktar').value=1;
     document.getElementById('islem-result').innerHTML='<div style="color:var(--text3);font-size:13px;text-align:center;padding:20px 0">Barkod tarandığında ürün bilgisi burada görünür</div>';
-    islemBarkod.focus();
+    if(islemMod==='isim'){const ii=document.getElementById('islem-isim-inp');ii.value='';document.getElementById('islem-isim-sonuc').classList.remove('acik');ii.focus();}
+    else if(islemMod==='tedarikci') document.getElementById('islem-miktar').focus();
+    else islemBarkod.focus();
   }catch(e){toast('Hata: '+e.message,'error');}
   btn.disabled=false;btn.textContent='İŞLEM YAP';
 };
@@ -1973,12 +2094,13 @@ window.filterHar=function(){
   if(!data.length){el.innerHTML='<div class="empty">Hareket bulunamadı</div>';return;}
   el.innerHTML=`<div class="har-list">${data.map(h=>{
     const ig=h.islem_tipi==='GİRİŞ', is=h.islem_tipi==='SAYIM';
+    const isAzaldi=is&&h.yeni_stok<h.onceki_stok;
     const cls=ig?'har-giris':is?'har-sayim':'har-cikis';
-    const mc=ig?'giris':is?'sayim':'cikis';
+    const mc=ig?'giris':isAzaldi?'cikis':is?'sayim':'cikis';
     return `<div class="har-item">
       <span class="har-tip ${cls}">${h.islem_tipi}</span>
       <div><div class="har-urun">${h.urun_adi||''}</div><div class="har-barkod">${h.barkod||''}</div></div>
-      <div class="har-miktar ${mc}">${ig||is?'+':'-'}${h.miktar}</div>
+      <div class="har-miktar ${mc}">${ig||(is&&h.yeni_stok>=h.onceki_stok)?'+':'-'}${h.miktar}</div>
       <div class="har-zaman">${fmtZaman(h.timestamp)}</div>
     </div>`;}).join('')}</div>`;
 };
@@ -2019,6 +2141,95 @@ function renderOzet(){
   renderOzetListe(kritikler,'ozet-kritik');
   renderOzetListe(tukendenler,'ozet-tukendi');
 }
+
+// ── GÖREVLER ──
+let gorevlerCache = [];
+
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+async function renderGorevler() {
+  const el = document.getElementById('gorev-liste');
+  if(!el) return;
+  el.innerHTML = '<div class="loading">Yükleniyor</div>';
+  try {
+    const snap = await getDocs(query(collection(db,'gorevler'), orderBy('olusturuldu','asc')));
+    gorevlerCache = [];
+    snap.forEach(d => gorevlerCache.push({_id:d.id, ...d.data()}));
+  } catch(e) {
+    el.innerHTML = '<div class="empty">Yüklenemedi</div>'; return;
+  }
+  renderGorevListe();
+}
+
+function renderGorevListe() {
+  const el = document.getElementById('gorev-liste');
+  if(!el) return;
+  const aktif = gorevlerCache.filter(g => !g.tamamlandi);
+  const tamamlanan = gorevlerCache.filter(g => g.tamamlandi);
+  const hepsi = [...aktif, ...tamamlanan];
+  if(!hepsi.length) { el.innerHTML = '<div class="empty">Görev yok</div>'; return; }
+  el.innerHTML = '<div class="gorev-liste">'+hepsi.map(g=>`
+    <div class="gorev-satir${g.tamamlandi?' tamamlandi':''}">
+      <input type="checkbox" class="gorev-cb" ${g.tamamlandi?'checked':''} onchange="gorevToggle('${g._id}',this.checked)">
+      <div class="gorev-icerik">
+        <div class="gorev-baslik">${esc(g.baslik)}</div>
+        ${g.aciklama?`<div class="gorev-meta">${esc(g.aciklama)}</div>`:''}
+        ${g.son_tarih?`<div class="gorev-meta">Son tarih: ${g.son_tarih}</div>`:''}
+      </div>
+      <button class="gorev-sil" onclick="gorevSil('${g._id}')">✕</button>
+    </div>`).join('')+'</div>';
+}
+
+window.toggleGorevForm = function(acik) {
+  const f = document.getElementById('gorev-form');
+  if(acik === false) { f.classList.remove('acik'); return; }
+  f.classList.toggle('acik');
+  if(f.classList.contains('acik')) {
+    document.getElementById('gorev-baslik-inp').value = '';
+    document.getElementById('gorev-aciklama-inp').value = '';
+    document.getElementById('gorev-tarih-inp').value = '';
+    setTimeout(()=>document.getElementById('gorev-baslik-inp').focus(), 50);
+  }
+};
+
+window.gorevEkle = async function() {
+  const baslik = document.getElementById('gorev-baslik-inp').value.trim();
+  if(!baslik) { toast('Başlık gerekli','error'); return; }
+  const aciklama = document.getElementById('gorev-aciklama-inp').value.trim();
+  const son_tarih = document.getElementById('gorev-tarih-inp').value || null;
+  try {
+    const ref = await addDoc(collection(db,'gorevler'), {
+      baslik, aciklama, son_tarih,
+      tamamlandi: false,
+      olusturuldu: serverTimestamp(),
+      olusturan: aktifKullanici.ad
+    });
+    gorevlerCache.push({_id:ref.id, baslik, aciklama, son_tarih, tamamlandi:false, olusturan:aktifKullanici.ad});
+    renderGorevListe();
+    toggleGorevForm(false);
+    toast('Görev eklendi','success');
+  } catch(e) { toast('Hata: '+e.message,'error'); }
+};
+
+window.gorevToggle = async function(id, tamamlandi) {
+  try {
+    await updateDoc(doc(db,'gorevler',id), {tamamlandi});
+    const g = gorevlerCache.find(g=>g._id===id);
+    if(g) g.tamamlandi = tamamlandi;
+    renderGorevListe();
+  } catch(e) { toast('Hata: '+e.message,'error'); }
+};
+
+window.gorevSil = async function(id) {
+  if(!confirm('Görev silinsin mi?')) return;
+  try {
+    await deleteDoc(doc(db,'gorevler',id));
+    gorevlerCache = gorevlerCache.filter(g=>g._id!==id);
+    renderGorevListe();
+    toast('Görev silindi');
+  } catch(e) { toast('Hata: '+e.message,'error'); }
+};
+
 window.ozekUrunAc=function(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
@@ -2556,12 +2767,13 @@ async function renderLoglar() {
       <div class="liste-wrap">
         ${grup.items.map(h=>{
           const ig=h.islem_tipi==='GİRİŞ', is=h.islem_tipi==='SAYIM';
+          const isAzaldi=is&&h.yeni_stok<h.onceki_stok;
           const cls=ig?'har-giris':is?'har-sayim':'har-cikis';
-          const mc=ig?'giris':is?'sayim':'cikis';
+          const mc=ig?'giris':isAzaldi?'cikis':is?'sayim':'cikis';
           return `<div class="har-item" style="grid-template-columns:auto 1fr auto auto">
             <span class="har-tip ${cls}">${h.islem_tipi}</span>
             <div><div class="har-urun">${h.urun_adi||''}</div><div class="har-barkod">${h.barkod||''}</div></div>
-            <div class="har-miktar ${mc}">${ig||is?'+':'-'}${h.miktar}</div>
+            <div class="har-miktar ${mc}">${ig||(is&&h.yeni_stok>=h.onceki_stok)?'+':'-'}${h.miktar}</div>
             <div class="har-zaman">${fmtZaman(h.timestamp)}</div>
           </div>`;
         }).join('')}
@@ -2600,13 +2812,14 @@ window.raporGetir = async function() {
   if(!hareketler.length) { el.innerHTML='<div class="empty">Bu aralıkta işlem yok</div>'; return; }
   el.innerHTML = `<div class="liste-wrap">${hareketler.map(h=>{
     const ig=h.islem_tipi==='GİRİŞ',is=h.islem_tipi==='SAYIM';
+    const isAzaldi=is&&h.yeni_stok<h.onceki_stok;
     const cls=ig?'har-giris':is?'har-sayim':'har-cikis';
-    const mc=ig?'giris':is?'sayim':'cikis';
+    const mc=ig?'giris':isAzaldi?'cikis':is?'sayim':'cikis';
     return `<div class="liste-item">
       <div><div style="font-size:13px">${h.urun_adi||''}</div><div style="font-family:var(--mono);font-size:11px;color:var(--text3)">${fmtZaman(h.timestamp)}</div></div>
       <div style="display:flex;align-items:center;gap:10px">
         <span class="har-tip ${cls}">${h.islem_tipi}</span>
-        <span class="har-miktar ${mc}" style="font-family:var(--mono);font-size:13px">${ig||is?'+':'-'}${h.miktar}</span>
+        <span class="har-miktar ${mc}" style="font-family:var(--mono);font-size:13px">${ig||(is&&h.yeni_stok>=h.onceki_stok)?'+':'-'}${h.miktar}</span>
       </div>
     </div>`;}).join('')}</div>`;
 };
