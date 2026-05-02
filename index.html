@@ -243,6 +243,24 @@ main{flex:1;padding:20px;max-width:1100px;margin:0 auto;width:100%}
 .gorsel-yukle-btn:hover{border-color:var(--accent);color:var(--accent)}
 .detay-gorsel{width:100%;max-height:200px;object-fit:contain;border-radius:var(--radius);margin-bottom:12px;background:var(--surface2)}
 
+/* ===== SİPARİŞ ===== */
+.siparis-grup{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:12px;overflow:hidden}
+.siparis-grup-header{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.siparis-grup-ad{font-weight:500;font-size:14px}
+.siparis-grup-gun{font-family:var(--mono);font-size:11px;color:var(--text2)}
+.siparis-satir{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border)}
+.siparis-satir:last-child{border-bottom:none}
+.siparis-satir-urun{flex:1;font-size:13px}
+.siparis-satir-miktar{font-family:var(--mono);font-size:13px;color:var(--text2);min-width:60px;text-align:right}
+.siparis-durum{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-family:var(--mono)}
+.siparis-bekliyor{background:#1a2a4a;color:#4a8aff}
+.siparis-onaylandi{background:var(--green-dim);color:var(--green)}
+.siparis-reddedildi{background:var(--red-dim);color:var(--red)}
+.siparis-ekle-form{padding:12px 14px;background:var(--surface2);display:flex;gap:8px;flex-wrap:wrap}
+.gun-pill{padding:5px 12px;background:var(--surface);border:1px solid var(--border);color:var(--text2);font-family:var(--mono);font-size:11px;border-radius:20px;cursor:pointer;transition:all .15s}
+.gun-pill.active{border-color:var(--accent);color:var(--accent);background:var(--surface2)}
+.gun-pill.bugün{border-color:var(--green);color:var(--green)}
+
 /* ===== TEDARİKÇİ ===== */
 .tedarikciler-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-bottom:16px}
 .tedarikci-kart{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px}
@@ -338,6 +356,7 @@ main{flex:1;padding:20px;max-width:1100px;margin:0 auto;width:100%}
     <button class="nav-btn active" onclick="goPage('urunler',this)">Ürünler</button>
     <button class="nav-btn" onclick="goPage('islemler',this)">İşlemler</button>
     <button class="nav-btn" onclick="goPage('sayim',this)">Sayım</button>
+    <button class="nav-btn" onclick="goPage('siparisler',this)">Siparişler</button>
     <button class="nav-btn" onclick="goPage('hareketler',this)">Hareketler</button>
     <button class="nav-btn" onclick="goPage('ozet',this)">Özet</button>
     <button class="nav-btn" id="loglar-nav-btn" onclick="goPage('loglar',this)" style="display:none">Loglar</button>
@@ -430,6 +449,19 @@ main{flex:1;padding:20px;max-width:1100px;margin:0 auto;width:100%}
   </div>
 </div>
 
+<!-- SİPARİŞLER -->
+<div id="page-siparisler" class="page">
+  <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
+    <div style="flex:1;font-family:var(--mono);font-size:12px;color:var(--text2)" id="siparis-bugun-info"></div>
+    <div style="display:flex;gap:4px" id="siparis-rol-filter" style="display:none">
+      <button class="ilgi-pill active" id="sf-hepsi" onclick="setSiparisFilter('hepsi')">Hepsi</button>
+      <button class="ilgi-pill" id="sf-salon" onclick="setSiparisFilter('salon')">Salon</button>
+      <button class="ilgi-pill" id="sf-mutfak" onclick="setSiparisFilter('mutfak')">Mutfak</button>
+    </div>
+  </div>
+  <div id="siparisler-content"><div class="loading">Yükleniyor</div></div>
+</div>
+
 <!-- LOGLAR -->
 <div id="page-loglar" class="page">
   <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
@@ -461,6 +493,7 @@ main{flex:1;padding:20px;max-width:1100px;margin:0 auto;width:100%}
     <button class="panel-tab" onclick="panelTab('rapor',this)">Stok Raporu</button>
     <button class="panel-tab" onclick="panelTab('sayim-gecmis',this)">Sayım Geçmişi</button>
     <button class="panel-tab" onclick="panelTab('import',this)">CSV Import</button>
+    <button class="panel-tab" onclick="panelTab('siparis-ayar',this)">Sipariş Ayarları</button>
   </div>
 
   <!-- TEDARİKÇİLER -->
@@ -534,6 +567,15 @@ main{flex:1;padding:20px;max-width:1100px;margin:0 auto;width:100%}
   <div id="panel-sayim-gecmis" class="panel-seksiyon">
     <div class="panel-seksiyon-title"><span>Sayım Geçmişi</span></div>
     <div id="sayim-gecmis-liste"><div class="loading">Yükleniyor</div></div>
+  </div>
+
+  <!-- SİPARİŞ AYARLARI -->
+  <div id="panel-siparis-ayar" class="panel-seksiyon">
+    <div class="panel-seksiyon-title"><span>Tedarikçi Sipariş Günleri</span></div>
+    <div id="ted-gun-liste" style="margin-bottom:16px"></div>
+    <div class="panel-seksiyon-title" style="margin-top:16px"><span>Harici Sipariş Günleri</span></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px" id="harici-gun-pills"></div>
+    <div style="font-size:12px;color:var(--text2)">Seçili günlerde personel harici sipariş ekleyebilir</div>
   </div>
 
   <!-- CSV IMPORT -->
@@ -762,8 +804,10 @@ function girisOnayla() {
   if(rol === 'mutfak') {
     nav.innerHTML = '<button class="nav-btn active" onclick="goPage(&quot;sayim&quot;,this)">Sayım</button>';
     goPage('sayim', nav.querySelector('.nav-btn'));
-  } else if(rol === 'salon') {
-    nav.innerHTML = '<button class="nav-btn active" onclick="goPage(&quot;sayim&quot;,this)">Sayım</button>';
+  } else if(rol === 'salon' || rol === 'mutfak') {
+    nav.innerHTML = `
+      <button class="nav-btn active" onclick="goPage('sayim',this)">Sayım</button>
+      <button class="nav-btn" onclick="goPage('siparisler',this)">Siparişler</button>`;
     goPage('sayim', nav.querySelector('.nav-btn'));
   }
   // yönetici için panel ve loglar butonu göster
@@ -805,10 +849,34 @@ function kritikBildirimGonder() {
   });
 }
 
-// Her saat başı kritik stok kontrolü
+// Her saat başı kritik stok + sipariş kontrolü
 setInterval(() => {
-  if(aktifKullanici?.rol === 'yonetici') kritikBildirimGonder();
+  if(aktifKullanici?.rol === 'yonetici') {
+    kritikBildirimGonder();
+    siparisGunuKontrol();
+  }
 }, 60 * 60 * 1000);
+
+// sayfa açılışında da kontrol et
+setTimeout(()=>{ if(aktifKullanici?.rol==='yonetici') siparisGunuKontrol(); }, 5000);
+
+async function siparisGunuKontrol() {
+  if(!('Notification' in window) || Notification.permission !== 'granted') return;
+  const bugunGun = GUNLER[new Date().getDay()];
+  const ayarSnap = await getDocs(collection(db,'siparis_ayarlar'));
+  const ayarlar = {};
+  ayarSnap.forEach(d => ayarlar[d.id] = d.data());
+  const acikTedlar = [];
+  Object.entries(ayarlar).forEach(([id, ayar]) => {
+    if(id!=='harici' && (ayar.gunler||[]).includes(bugunGun)) acikTedlar.push(id);
+  });
+  const hariciAcik = (ayarlar['harici']?.gunler||[]).includes(bugunGun);
+  if(acikTedlar.length || hariciAcik) {
+    const msg = [...acikTedlar, ...(hariciAcik?['Harici']:[])]
+      .join(', ') + ' için bugün sipariş günü!';
+    new Notification('Sipariş Günü', {body: msg, icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🛒</text></svg>'});
+  }
+}
 
 window.cikisYap = function() {
   if(!confirm('Çıkış yapmak istiyor musunuz?')) return;
@@ -827,6 +895,7 @@ window.cikisYap = function() {
     <button class="nav-btn active" onclick="goPage('urunler',this)">Ürünler</button>
     <button class="nav-btn" onclick="goPage('islemler',this)">İşlemler</button>
     <button class="nav-btn" onclick="goPage('sayim',this)">Sayım</button>
+    <button class="nav-btn" onclick="goPage('siparisler',this)">Siparişler</button>
     <button class="nav-btn" onclick="goPage('hareketler',this)">Hareketler</button>
     <button class="nav-btn" onclick="goPage('ozet',this)">Özet</button>
     <button class="nav-btn" id="loglar-nav-btn" onclick="goPage('loglar',this)" style="display:none">Loglar</button>
@@ -947,6 +1016,8 @@ window.goPage = function(name, btn){
   if(name==='islemler') setTimeout(()=>document.getElementById('islem-barkod')?.focus(),100);
   if(name==='panel') renderPanel();
   if(name==='loglar') renderLoglar();
+  if(name==='siparisler') renderSiparisler();
+  if(name==='panel'&&aktifPanelTab==='siparis-ayar') renderSiparisAyar();
   // FAB sadece sayım sayfasında ve mobilde görünsün
   const fab=document.getElementById('fab-tara');
   if(fab) fab.classList.toggle('visible', name==='sayim' && window.innerWidth<=768);
@@ -1897,6 +1968,7 @@ window.panelTab = function(ad, btn) {
   if(btn) btn.classList.add('active');
   aktifPanelTab = ad;
   if(ad==='sayim-gecmis') loadSayimGecmis();
+  if(ad==='siparis-ayar') renderSiparisAyar();
 };
 
 window.filterListe = function(tip) {
@@ -1923,8 +1995,9 @@ async function loadTedarikciler() {
     <div class="liste-item">
       <div>
         <div class="liste-item-ad">${t._id}</div>
-        ${t.tel?`<div class="tedarikci-tel" onclick="window.open('tel:${t.tel}')">${t.tel}</div>`:''}
-        ${t.not?`<div style="font-size:11px;color:var(--text2);margin-top:2px">${t.not}</div>`:''}
+        ${aktifKullanici?.rol==='yonetici'&&t.temsilci?`<div style="font-size:12px;color:var(--text2);margin-top:2px">Temsilci: ${t.temsilci}</div>`:''}
+        ${aktifKullanici?.rol==='yonetici'&&t.tel?`<div class="tedarikci-tel" onclick="window.open('tel:${t.tel}')">${t.tel}</div>`:''}
+        ${aktifKullanici?.rol==='yonetici'&&t.not?`<div style="font-size:11px;color:var(--text2);margin-top:2px">${t.not}</div>`:''}
       </div>
       <div class="liste-item-actions">
         <button class="ic-btn" data-ted-duzenle="${t._id}">düzenle</button>
@@ -1944,7 +2017,7 @@ window.rehberdenSec = async function() {
     const contact = contacts[0];
     const ad = contact.name?.[0] || '';
     const tel = contact.tel?.[0] || '';
-    if(ad) document.getElementById('yeni-ted-ad').value = ad;
+    if(ad) document.getElementById('yeni-ted-temsilci').value = ad;
     if(tel) document.getElementById('yeni-ted-tel').value = tel;
     toast('Kişi seçildi: ' + ad);
   } catch(e) {
@@ -1954,11 +2027,13 @@ window.rehberdenSec = async function() {
 
 window.tedEkle = async function() {
   const ad = document.getElementById('yeni-ted-ad').value.trim();
+  const temsilci = document.getElementById('yeni-ted-temsilci').value.trim();
   const tel = document.getElementById('yeni-ted-tel').value.trim();
   const not = document.getElementById('yeni-ted-not').value.trim();
-  if(!ad) { toast('Tedarikçi adı gir','error'); return; }
-  await setDoc(doc(db,'tedarikciler',ad), {tel, not, olusturuldu: new Date()});
+  if(!ad) { toast('Şirket adı gir','error'); return; }
+  await setDoc(doc(db,'tedarikciler',ad), {temsilci, tel, not, olusturuldu: new Date()});
   document.getElementById('yeni-ted-ad').value='';
+  document.getElementById('yeni-ted-temsilci').value='';
   document.getElementById('yeni-ted-tel').value='';
   document.getElementById('yeni-ted-not').value='';
   toast(ad + ' eklendi','success');
@@ -2076,6 +2151,242 @@ window.sayimiGeriAl = async function(sayimId) {
   } catch(e) {
     toast('Hata: '+e.message,'error');
   }
+};
+
+// ── SİPARİŞLER ──
+const GUNLER = ['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'];
+let aktifSiparisFilter = 'hepsi';
+
+window.setSiparisFilter = function(f) {
+  aktifSiparisFilter = f;
+  ['hepsi','salon','mutfak'].forEach(x=>{
+    const b=document.getElementById('sf-'+x);
+    if(b) b.classList.toggle('active',x===f);
+  });
+  renderSiparisler();
+};
+
+async function renderSiparisler() {
+  const el = document.getElementById('siparisler-content');
+  if(!el) return;
+  el.innerHTML = '<div class="loading">Yükleniyor</div>';
+
+  const bugun = new Date();
+  const bugunGun = GUNLER[bugun.getDay()];
+  const bugunStr = bugun.toISOString().split('T')[0];
+  const rol = aktifKullanici?.rol;
+  const rolIlgi = rol==='salon'?'Salon':rol==='mutfak'?'Mutfak':null;
+
+  // yönetici filtre göster
+  const filtrDiv = document.getElementById('siparis-rol-filter');
+  if(filtrDiv) filtrDiv.style.display = rol==='yonetici'?'flex':'none';
+
+  // tedarikçileri ve sipariş günlerini çek
+  const [tedSnap, ayarSnap, siparisSnap] = await Promise.all([
+    getDocs(collection(db,'tedarikciler')),
+    getDocs(collection(db,'siparis_ayarlar')),
+    getDocs(query(collection(db,'siparisler'),orderBy('tarih','desc'),limit(200)))
+  ]);
+
+  const ayarlar = {};
+  ayarSnap.forEach(d => ayarlar[d.id] = d.data());
+
+  const tumSiparisler = [];
+  siparisSnap.forEach(d => tumSiparisler.push({...d.data(),_id:d.id}));
+
+  const hariciAyar = ayarlar['harici']||{};
+  const hariciGunler = hariciAyar.gunler||[];
+  const bugunHariciAcik = hariciGunler.includes(bugunGun);
+
+  document.getElementById('siparis-bugun-info').textContent = bugunGun + ' · ' + bugun.toLocaleDateString('tr-TR');
+
+  let html = '';
+
+  // tedarikçi siparişleri
+  const tedlar = [];
+  tedSnap.forEach(d => tedlar.push({...d.data(),_id:d.id}));
+
+  for(const ted of tedlar) {
+    const tedAyar = ayarlar[ted._id]||{};
+    const tedGunler = tedAyar.gunler||[];
+    const bugunAcik = tedGunler.includes(bugunGun);
+
+    // bu tedarikçinin siparişleri
+    let tedSiparisler = tumSiparisler.filter(s=>s.tedarikci===ted._id&&s.tarih===bugunStr);
+    if(rol==='yonetici') {
+      if(aktifSiparisFilter==='salon') tedSiparisler=tedSiparisler.filter(s=>s.kullanici_rol==='salon');
+      else if(aktifSiparisFilter==='mutfak') tedSiparisler=tedSiparisler.filter(s=>s.kullanici_rol==='mutfak');
+    } else {
+      tedSiparisler=tedSiparisler.filter(s=>s.kullanici_rol===rol);
+    }
+
+    if(!bugunAcik && !tedSiparisler.length) continue;
+
+    html += `<div class="siparis-grup">
+      <div class="siparis-grup-header">
+        <div>
+          <div class="siparis-grup-ad">${ted._id}</div>
+          <div class="siparis-grup-gun">Sipariş günleri: ${tedGunler.join(', ')||'Belirlenmedi'}</div>
+          ${aktifKullanici?.rol==='yonetici'&&ted.temsilci?`<div style="font-size:11px;color:var(--text2)">Temsilci: ${ted.temsilci}</div>`:''}
+          ${aktifKullanici?.rol==='yonetici'&&ted.tel?`<div style="font-family:var(--mono);font-size:11px;color:var(--accent);cursor:pointer" onclick="window.open('tel:${ted.tel}')">${ted.tel}</div>`:''}
+        </div>
+        ${bugunAcik?`<span class="siparis-durum siparis-bekliyor">BUGÜN SİPARİŞ GÜNÜ</span>`:''}
+      </div>
+      ${tedSiparisler.map(s=>`
+        <div class="siparis-satir">
+          <div class="siparis-satir-urun">
+            <div>${s.urun_adi}</div>
+            <div style="font-size:11px;color:var(--text2)">${s.kullanici||''} ${rol==='yonetici'?'· '+s.kullanici_rol:''}</div>
+            ${s.not?`<div style="font-size:11px;color:var(--text2);margin-top:2px">Not: ${s.not}</div>`:''}
+          </div>
+          <div class="siparis-satir-miktar">${s.miktar||'—'}</div>
+          <span class="siparis-durum siparis-${s.durum||'bekliyor'}">${{bekliyor:'Bekliyor',onaylandi:'Onaylandı',reddedildi:'Reddedildi'}[s.durum||'bekliyor']}</span>
+          ${rol==='yonetici'&&s.durum==='bekliyor'?`
+            <button class="ic-btn" data-siparis-onayla="${s._id}">✓</button>
+            <button class="ic-btn red" data-siparis-reddet="${s._id}">✗</button>
+          `:''}
+          ${(rol!=='yonetici'&&s.kullanici===aktifKullanici?.ad&&s.durum==='bekliyor')?`<button class="ic-btn red" data-siparis-sil="${s._id}">sil</button>`:''}
+        </div>`).join('')}
+      ${bugunAcik&&(rol!=='yonetici')?`
+        <div class="siparis-ekle-form">
+          <select class="inp" id="siparis-urun-${ted._id}" style="flex:1;font-size:13px">
+            <option value="">Ürün seç...</option>
+            ${Object.values(stokCache).filter(u=>!rolIlgi||u.ilgi===rolIlgi).map(u=>`<option value="${u._id}">${u.urun_adi}</option>`).join('')}
+          </select>
+          <input class="inp" id="siparis-miktar-${ted._id}" type="number" step="any" placeholder="Miktar (opsiyonel)" style="width:160px">
+          <input class="inp" id="siparis-not-${ted._id}" placeholder="Not" style="width:120px">
+          <button class="btn-accent" onclick="window.siparisEkle('${ted._id}','ted')">Ekle</button>
+        </div>`:''}
+    </div>`;
+  }
+
+  // harici siparişler
+  let hariciSiparisler = tumSiparisler.filter(s=>s.tedarikci==='harici'&&s.tarih===bugunStr);
+  if(rol==='yonetici') {
+    if(aktifSiparisFilter==='salon') hariciSiparisler=hariciSiparisler.filter(s=>s.kullanici_rol==='salon');
+    else if(aktifSiparisFilter==='mutfak') hariciSiparisler=hariciSiparisler.filter(s=>s.kullanici_rol==='mutfak');
+  } else {
+    hariciSiparisler=hariciSiparisler.filter(s=>s.kullanici_rol===rol);
+  }
+
+  if(bugunHariciAcik || hariciSiparisler.length) {
+    html += `<div class="siparis-grup">
+      <div class="siparis-grup-header">
+        <div>
+          <div class="siparis-grup-ad">Harici Sipariş</div>
+          <div class="siparis-grup-gun">Açık günler: ${hariciGunler.join(', ')||'Belirlenmedi'}</div>
+        </div>
+        ${bugunHariciAcik?`<span class="siparis-durum siparis-bekliyor">BUGÜN AÇIK</span>`:''}
+      </div>
+      ${hariciSiparisler.map(s=>`
+        <div class="siparis-satir">
+          <div class="siparis-satir-urun">
+            <div>${s.urun_adi}</div>
+            <div style="font-size:11px;color:var(--text2)">${s.kullanici||''} ${rol==='yonetici'?'· '+s.kullanici_rol:''}</div>
+            ${s.not?`<div style="font-size:11px;color:var(--text2)">Not: ${s.not}</div>`:''}
+          </div>
+          <div class="siparis-satir-miktar">${s.miktar||'—'}</div>
+          <span class="siparis-durum siparis-${s.durum||'bekliyor'}">${{bekliyor:'Bekliyor',onaylandi:'Onaylandı',reddedildi:'Reddedildi'}[s.durum||'bekliyor']}</span>
+          ${rol==='yonetici'&&s.durum==='bekliyor'?`
+            <button class="ic-btn" data-siparis-onayla="${s._id}">✓</button>
+            <button class="ic-btn red" data-siparis-reddet="${s._id}">✗</button>
+          `:''}
+          ${(rol!=='yonetici'&&s.kullanici===aktifKullanici?.ad&&s.durum==='bekliyor')?`<button class="ic-btn red" data-siparis-sil="${s._id}">sil</button>`:''}
+        </div>`).join('')}
+      ${bugunHariciAcik&&rol!=='yonetici'?`
+        <div class="siparis-ekle-form">
+          <input class="inp" id="siparis-urun-harici" placeholder="Ürün adı *" style="flex:1">
+          <input class="inp" id="siparis-miktar-harici" type="number" step="any" placeholder="Miktar (opsiyonel)" style="width:160px">
+          <input class="inp" id="siparis-not-harici" placeholder="Not" style="width:120px">
+          <button class="btn-accent" onclick="window.siparisEkle('harici','harici')">Ekle</button>
+        </div>`:''}
+    </div>`;
+  }
+
+  el.innerHTML = html || '<div class="empty">Bugün sipariş günü yok</div>';
+}
+
+window.siparisEkle = async function(tedId, tip) {
+  const bugunStr = new Date().toISOString().split('T')[0];
+  let urunAdi, miktar, not2;
+
+  if(tip==='harici') {
+    urunAdi = document.getElementById('siparis-urun-harici')?.value.trim();
+    miktar = document.getElementById('siparis-miktar-harici')?.value;
+    not2 = document.getElementById('siparis-not-harici')?.value.trim();
+    if(!urunAdi) { toast('Ürün adı gir','error'); return; }
+  } else {
+    const urunId = document.getElementById('siparis-urun-'+tedId)?.value;
+    if(!urunId) { toast('Ürün seç','error'); return; }
+    urunAdi = stokCache[urunId]?.urun_adi||'';
+    miktar = document.getElementById('siparis-miktar-'+tedId)?.value;
+    not2 = document.getElementById('siparis-not-'+tedId)?.value.trim();
+  }
+
+  await addDoc(collection(db,'siparisler'),{
+    tedarikci: tedId,
+    urun_adi: urunAdi,
+    miktar: miktar ? parseFloat(miktar) : null,
+    not: not2||'',
+    tarih: bugunStr,
+    durum: 'bekliyor',
+    kullanici: aktifKullanici?.ad||'',
+    kullanici_rol: aktifKullanici?.rol||'',
+    timestamp: new Date()
+  });
+  toast('Talep oluşturuldu','success');
+  renderSiparisler();
+};
+
+// sipariş ayarları
+async function renderSiparisAyar() {
+  const [tedSnap, ayarSnap] = await Promise.all([
+    getDocs(collection(db,'tedarikciler')),
+    getDocs(collection(db,'siparis_ayarlar'))
+  ]);
+  const ayarlar = {};
+  ayarSnap.forEach(d => ayarlar[d.id] = d.data());
+
+  const tedEl = document.getElementById('ted-gun-liste');
+  const tedlar = [];
+  tedSnap.forEach(d => tedlar.push({...d.data(),_id:d.id}));
+
+  if(tedEl) tedEl.innerHTML = tedlar.map(t=>{
+    const secili = ayarlar[t._id]?.gunler||[];
+    return `<div style="margin-bottom:12px">
+      <div style="font-size:13px;font-weight:500;margin-bottom:6px">${t._id}</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${GUNLER.map(g=>`<button class="gun-pill${secili.includes(g)?' active':''}" data-ted="${t._id}" data-gun="${g}" onclick="toggleTedGun('${t._id}','${g}',this)">${g}</button>`).join('')}
+      </div>
+    </div>`;
+  }).join('') || '<div class="empty">Tedarikçi yok</div>';
+
+  const hariciEl = document.getElementById('harici-gun-pills');
+  const hariciSecili = ayarlar['harici']?.gunler||[];
+  if(hariciEl) hariciEl.innerHTML = GUNLER.map(g=>`
+    <button class="gun-pill${hariciSecili.includes(g)?' active':''}" onclick="toggleHariciGun('${g}',this)">${g}</button>`).join('');
+}
+
+window.toggleTedGun = async function(tedId, gun, btn) {
+  const ayarRef = doc(db,'siparis_ayarlar',tedId);
+  const snap = await getDoc(ayarRef);
+  let gunler = snap.exists() ? (snap.data().gunler||[]) : [];
+  if(gunler.includes(gun)) gunler=gunler.filter(g=>g!==gun);
+  else gunler.push(gun);
+  await setDoc(ayarRef,{gunler},{merge:true});
+  btn.classList.toggle('active');
+  toast('Kaydedildi');
+};
+
+window.toggleHariciGun = async function(gun, btn) {
+  const ayarRef = doc(db,'siparis_ayarlar','harici');
+  const snap = await getDoc(ayarRef);
+  let gunler = snap.exists() ? (snap.data().gunler||[]) : [];
+  if(gunler.includes(gun)) gunler=gunler.filter(g=>g!==gun);
+  else gunler.push(gun);
+  await setDoc(ayarRef,{gunler},{merge:true});
+  btn.classList.toggle('active');
+  toast('Kaydedildi');
 };
 
 // ── LOGLAR ──
@@ -2335,6 +2646,27 @@ document.addEventListener('click', e => {
   if(tedSil) {
     if(!confirm('"'+tedSil+'" silinsin mi?')) return;
     deleteDoc(doc(db,'tedarikciler',tedSil)).then(()=>{ toast('Silindi'); loadTedarikciler(); });
+    return;
+  }
+  // sipariş onayla
+  const siparisOnayla = e.target.dataset.siparisOnayla;
+  if(siparisOnayla) {
+    updateDoc(doc(db,'siparisler',siparisOnayla),{durum:'onaylandi',onay_zamani:new Date(),onaylayan:aktifKullanici?.ad||''})
+      .then(()=>{ toast('Onaylandı','success'); renderSiparisler(); });
+    return;
+  }
+  // sipariş reddet
+  const siparisReddet = e.target.dataset.siparisReddet;
+  if(siparisReddet) {
+    updateDoc(doc(db,'siparisler',siparisReddet),{durum:'reddedildi'})
+      .then(()=>{ toast('Reddedildi'); renderSiparisler(); });
+    return;
+  }
+  // sipariş sil
+  const siparisSil = e.target.dataset.siparisSil;
+  if(siparisSil) {
+    if(!confirm('Talep silinsin mi?')) return;
+    deleteDoc(doc(db,'siparisler',siparisSil)).then(()=>{ toast('Silindi'); renderSiparisler(); });
     return;
   }
   // birim düzenle
